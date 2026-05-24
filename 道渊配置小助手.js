@@ -390,7 +390,6 @@ p.document.body.insertAdjacentHTML('beforeend', `
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">提示词模板</div>
         <button class="bp-switch-btn primary" id="bp-ejs-optimize" style="margin-bottom:4px;">一键最优配置</button>
-        <button class="bp-switch-btn" id="bp-ejs-check">检测插件状态</button>
         <div id="bp-ejs-status" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.5;"></div>
       </div>
       <div class="bp-switch-section" id="bp-mvu-section">
@@ -603,7 +602,6 @@ const mvuCompatChecks = p.document.getElementById('bp-mvu-compat-checks');
 const mvuOptimizeBtn = p.document.getElementById('bp-mvu-optimize');
 const mvuApplyBtn = p.document.getElementById('bp-mvu-apply');
 const mvuStatus = p.document.getElementById('bp-mvu-status');
-const ejsCheckBtn = p.document.getElementById('bp-ejs-check');
 const ejsOptimizeBtn = p.document.getElementById('bp-ejs-optimize');
 const ejsStatus = p.document.getElementById('bp-ejs-status');
 const bpConfirmOverlay = p.document.getElementById('bp-confirm-overlay');
@@ -920,12 +918,12 @@ function applyOptimalEjs() {
     Object.assign(ejs, EJS_OPTIMAL);
     SillyTavern.saveSettingsDebounced();
     checkEjsTemplate();
-    showToast('提示词模板已设为最优配置');
+    showToast('提示词模板已设为最优配置，2秒后刷新页面...');
+    setTimeout(() => { window.parent.location.reload(); }, 2000);
   } catch (e) {
     showToast('配置失败: ' + e.message);
   }
 }
-ejsCheckBtn.addEventListener('click', checkEjsTemplate);
 ejsOptimizeBtn.addEventListener('click', applyOptimalEjs);
 
 // 刷新配置状态
