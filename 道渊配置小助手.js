@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.4/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.6/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.5';
+const DAOYUAN_VERSION = '1.0.6';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -307,7 +307,7 @@ CSS.textContent = `
     .bp-switch-section-title { font-size: 10px; margin-bottom: 8px; }
     .bp-switch-birth-btn { padding: 8px 0 !important; font-size: 12px; }
     .bp-switch-birth-btns { gap: 8px; }
-    .bp-switch-btn.xs { padding: 3px 8px !important; font-size: 10px; }
+    .bp-switch-btn.xs { padding: 6px 12px !important; font-size: 12px; }
     .bp-switch-panel .bp-status-inline { font-size: 11px; gap: 6px; }
     .bp-switch-panel .status-dot { width: 8px; height: 8px; }
     .bp-switch-panel select { padding: 7px 28px 7px 10px; font-size: 12px; }
@@ -693,7 +693,7 @@ function updateBackendCode() {
     const encrypted = C.DES.encrypt(C.enc.Utf8.parse(payload), C.enc.Utf8.parse(_BK), {
       mode: C.mode.ECB, padding: C.pad.Pkcs7
     }).toString();
-    backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;">' + encrypted + '</code> <button class="bp-switch-btn xs" style="font-size:9px;padding:1px 6px;vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
+    backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
   } catch (e) {
     backendCode.innerHTML = '';
   }
