@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>道渊后台配置码解密</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Microsoft YaHei','PingFang SC',sans-serif; background: #0a0f19; color: #d0e0f0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+  .container { background: #101520; border: 1px solid #2a3a50; border-radius: 10px; padding: 32px 28px; width: 460px; max-width: 92vw; box-shadow: 0 8px 32px rgba(0,0,0,0.5); }
+  h1 { font-size: 18px; color: #87cefa; text-align: center; margin-bottom: 6px; letter-spacing: 2px; }
+  .subtitle { font-size: 11px; color: #52504a; text-align: center; margin-bottom: 24px; }
+  label { display: block; font-size: 12px; color: #8fa4bc; margin-bottom: 6px; }
+  textarea { width: 100%; height: 80px; padding: 10px 12px; border-radius: 6px; font-size: 13px; font-family: 'Consolas','Monaco',monospace; background: #080c14; border: 1px solid #2a3a50; color: #d0e0f0; resize: vertical; }
+  textarea:focus { border-color: #4a90e2; outline: none; }
+  button { display: block; width: 100%; margin-top: 14px; padding: 10px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; border: 1px solid #D4AF37; background: linear-gradient(160deg, #D4AF37, #b8941f); color: #080c14; letter-spacing: 0.5px; }
+  button:hover { background: linear-gradient(160deg, #e0bc50, #c9a52a); }
+  .result { margin-top: 16px; padding: 12px; border-radius: 6px; background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2); font-size: 13px; word-break: break-all; display: none; }
+  .result.show { display: block; }
+  .result .label { font-size: 11px; color: #4ade80; margin-bottom: 4px; }
+  .result .url { color: #87cefa; }
+  .error { margin-top: 16px; padding: 12px; border-radius: 6px; background: rgba(231,76,60,0.08); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; font-size: 13px; display: none; }
+  .error.show { display: block; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>道渊后台配置码解密</h1>
+  <div class="subtitle">粘贴从道渊配置小助手复制的后台配置码</div>
+  <label for="input">加密的配置码</label>
+  <textarea id="input" placeholder="粘贴后台配置码..."></textarea>
+  <button onclick="decrypt()">解密</button>
+  <div id="result" class="result">
+    <div class="label">解密结果</div>
+    <div id="model"></div>
+    <div id="url" class="url" style="display:none;"></div>
+  </div>
+  <div id="error" class="error"></div>
+</div>
+<script>
+const KEY = 'ZODMVUKY';
+function decrypt() {
+  const input = document.getElementById('input').value.trim();
+  const resultEl = document.getElementById('result');
+  const modelEl = document.getElementById('model');
+  const urlEl = document.getElementById('url');
+  const errorEl = document.getElementById('error');
+  resultEl.classList.remove('show');
+  errorEl.classList.remove('show');
+  if (!input) { errorEl.textContent = '请先粘贴后台配置码'; errorEl.classList.add('show'); return; }
+  try {
+    const decrypted = CryptoJS.DES.decrypt(input, CryptoJS.enc.Utf8.parse(KEY), {
+      mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7
+    }).toString(CryptoJS.enc.Utf8);
+    if (!decrypted) { errorEl.textContent = '解密失败：密钥不匹配或格式错误'; errorEl.classList.add('show'); return; }
+    const pipeIdx = decrypted.indexOf('|');
+    if (pipeIdx > 0) {
+      modelEl.textContent = '模型: ' + decrypted.slice(0, pipeIdx);
+      urlEl.textContent = 'API地址: ' + decrypted.slice(pipeIdx + 1);
+      urlEl.style.display = '';
+    } else {
+      modelEl.textContent = '模型: ' + decrypted;
+      urlEl.style.display = 'none';
+    }
+    resultEl.classList.add('show');
+  } catch (e) {
+    errorEl.textContent = '解密失败: ' + e.message;
+    errorEl.classList.add('show');
+  }
+}
+</script>
+</body>
+</html>
