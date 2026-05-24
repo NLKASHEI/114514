@@ -387,6 +387,11 @@ p.document.body.insertAdjacentHTML('beforeend', `
         </div>
         <div id="bp-mode-status" style="font-size:11px;color:#8fa4bc;margin-top:8px;text-align:center;line-height:1.6;"></div>
       </div>
+      <div class="bp-switch-section">
+        <div class="bp-switch-section-title">提示词模板(EJS)</div>
+        <button class="bp-switch-btn" id="bp-ejs-check">检测插件状态</button>
+        <div id="bp-ejs-status" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.5;"></div>
+      </div>
       <div class="bp-switch-section" id="bp-mvu-section">
         <div class="bp-switch-section-title">MVU插件配置</div>
         <button class="bp-switch-btn primary" id="bp-mvu-optimize" style="margin-bottom:8px;">一键最优配置</button>
@@ -597,6 +602,8 @@ const mvuCompatChecks = p.document.getElementById('bp-mvu-compat-checks');
 const mvuOptimizeBtn = p.document.getElementById('bp-mvu-optimize');
 const mvuApplyBtn = p.document.getElementById('bp-mvu-apply');
 const mvuStatus = p.document.getElementById('bp-mvu-status');
+const ejsCheckBtn = p.document.getElementById('bp-ejs-check');
+const ejsStatus = p.document.getElementById('bp-ejs-status');
 const bpConfirmOverlay = p.document.getElementById('bp-confirm-overlay');
 const bpConfirmMsg = p.document.getElementById('bp-confirm-msg');
 const bpConfirmBody = p.document.getElementById('bp-confirm-body');
@@ -879,6 +886,33 @@ function onMvuFieldChange() {
   _mvuSaveTimer = setTimeout(() => saveMvuConfig(), 600);
 }
 
+const EJS_OPTIMAL = {
+  enabled: true, generate_enabled: true, generate_loader_enabled: true,
+  render_enabled: true, render_loader_enabled: true, with_context_disabled: false,
+  debug_enabled: false, autosave_enabled: false, preload_worldinfo_enabled: true,
+  code_blocks_enabled: true, raw_message_evaluation_enabled: true, filter_message_enabled: true,
+  inject_loader_enabled: false, invert_enabled: true, depth_limit: -1,
+  compile_workers: false, sandbox: false
+};
+function checkEjsTemplate() {
+  try {
+    const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
+    if (!ejs) { ejsStatus.innerHTML = '🔴 提示词模板(EJS)插件未安装'; return; }
+    const issues = [];
+    for (const [k, v] of Object.entries(EJS_OPTIMAL)) {
+      if (ejs[k] !== v) issues.push(k + ': 当前' + JSON.stringify(ejs[k]) + ' 应为' + JSON.stringify(v));
+    }
+    if (issues.length === 0) {
+      ejsStatus.innerHTML = '🟢 提示词模板配置最优';
+    } else {
+      ejsStatus.innerHTML = '🟡 存在' + issues.length + '项偏差<br>' + issues.slice(0, 5).join('<br>');
+    }
+  } catch (e) {
+    ejsStatus.textContent = '检测失败: ' + e.message;
+  }
+}
+ejsCheckBtn.addEventListener('click', checkEjsTemplate);
+
 // 刷新配置状态
 function refreshMvuConfigStatus() {
   try {
@@ -988,12 +1022,12 @@ bubble.addEventListener('click', () => {
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
     panel.style.display = 'flex';
-    checkConfig(); refreshMvuSectionVisibility(); refreshMvuConfigStatus(); refreshWorldbookList();
+    checkConfig(); refreshMvuSectionVisibility(); refreshMvuConfigStatus(); refreshWorldbookList(); checkEjsTemplate();
   }
 });
 
 // 面板获得鼠标时自动刷新（用户可能中途手动改了设置）
-panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); updateBackendCode(); refreshWorldbookList(); });
+panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); updateBackendCode(); refreshWorldbookList(); checkEjsTemplate(); });
 
 // --- 工具：获取触摸/鼠标坐标 ---
 function getXY(e) {
@@ -1271,7 +1305,7 @@ async function refreshModeStatus() {
 
 // --- 事件绑定 ---
 wbSelect.addEventListener('change', () => { refreshStatus(); refreshModeStatus(); });
-refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConfigStatus(); await refreshWorldbookList(); showToast('已刷新'); });
+refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConfigStatus(); await refreshWorldbookList(); checkEjsTemplate(); showToast('已刷新'); });
 
 for (const btn of birthBtns) {
   btn.addEventListener('click', () => doSwitch(btn.dataset.birthplace));
@@ -1434,5 +1468,6 @@ refreshMvuSectionVisibility();
 await refreshMvuConfigStatus();
 await refreshWorldbookList();
 refreshModeStatus();
+checkEjsTemplate();
 
 export {}
