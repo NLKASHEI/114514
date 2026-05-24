@@ -3,7 +3,7 @@
 //   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.4/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.4';
+const DAOYUAN_VERSION = '1.0.5';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -113,23 +113,20 @@ CSS.textContent = `
   .bp-switch-bubble:focus-within,
   .bp-switch-bubble:active {
     position: fixed !important; width: 40px; height: 40px;
-    background: transparent !important; border: none !important; border-radius: 0 !important;
+    background: transparent !important; border: none !important; border-radius: 50% !important;
     z-index: 1000000; cursor: pointer; display: flex; align-items: center;
     justify-content: center; touch-action: none;
-    font-family: 'Ma Shan Zheng', cursive !important; font-size: 28px;
-    color: #4a90e2 !important;
-    text-shadow: 0 0 8px #87cefa !important;
-    box-shadow: none !important; outline: none !important;
-    transition: left 0.3s cubic-bezier(0.18,0.89,0.32,1.28), color 0.2s, text-shadow 0.2s;
+    box-shadow: 0 0 12px rgba(74,144,226,0.4) !important; outline: none !important;
+    transition: left 0.3s cubic-bezier(0.18,0.89,0.32,1.28), box-shadow 0.2s;
     user-select: none; -webkit-user-select: none;
-    line-height: 1 !important; padding: 0 !important; margin: 0 !important;
+    padding: 0 !important; margin: 0 !important; overflow: hidden;
     -webkit-tap-highlight-color: transparent !important;
     -webkit-appearance: none !important; appearance: none !important;
     text-decoration: none !important; pointer-events: auto;
   }
+  .bp-switch-bubble img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .bp-switch-bubble:hover {
-    color: #87cefa !important;
-    text-shadow: 0 0 14px #87cefa !important;
+    box-shadow: 0 0 20px rgba(74,144,226,0.7) !important;
   }
   .bp-switch-panel {
     position: fixed !important; z-index: 999998;
@@ -153,13 +150,14 @@ CSS.textContent = `
     justify-content: space-between; cursor: move; user-select: none;
     touch-action: none; flex-shrink: 0;
     border-bottom: 1px solid rgba(28,61,94,0.3) !important;
-    background: rgba(74,144,226,0.03) !important; margin: 0 !important;
+    background: transparent !important; margin: 0 !important;
   }
   .bp-switch-header-title {
     color: #87cefa !important; font-weight: 400; font-size: 18px;
     font-family: 'Ma Shan Zheng', cursive !important;
     letter-spacing: 2px; display: flex; align-items: center; gap: 8px;
     background: none !important; border: none !important;
+    text-shadow: none !important; box-shadow: none !important;
   }
   .bp-switch-body { flex: 1; overflow-y: auto; padding: 14px 16px !important; }
   .bp-switch-body::-webkit-scrollbar { width: 4px; }
@@ -301,7 +299,7 @@ CSS.textContent = `
   @keyframes bp-toast-out { to { opacity: 0; transform: translateX(-50%) translateY(-12px); } }
   @media (max-width: 768px) {
     .bp-switch-panel { width: clamp(260px, 88vw, 340px) !important; font-size: 12px; }
-    .bp-switch-bubble { width: 36px; height: 36px; font-size: 24px; }
+    .bp-switch-bubble { width: 36px; height: 36px; }
     .bp-switch-header { padding: 10px 12px 8px !important; }
     .bp-switch-header-title { font-size: 16px; letter-spacing: 1px; }
     .bp-switch-body { padding: 10px 10px !important; }
@@ -357,7 +355,7 @@ p.document.head.appendChild(MVU_CSS);
 
 // --- HTML（注入到父页面） ---
 p.document.body.insertAdjacentHTML('beforeend', `
-  <div id="bp-switch-bubble" class="bp-switch-bubble" style="top: 40vh; left: 60px;" title="出生地开关">道</div>
+  <div id="bp-switch-bubble" class="bp-switch-bubble" style="top: 40vh; left: 60px;" title="道渊配置小助手"><img src="https://free-img.400040.xyz/4/2026/05/24/6a12e754abb38.png" alt="道"></div>
   <div id="bp-switch-panel" class="bp-switch-panel" style="display:none; left: 110px; top: 35vh;">
     <div class="bp-switch-header" id="bp-switch-drag">
       <span class="bp-switch-header-title">道渊配置小助手</span>
@@ -547,7 +545,8 @@ p.document.body.insertAdjacentHTML('beforeend', `
       </div>
       <div style="text-align:center;padding:12px 16px 14px;border-top:1px solid rgba(28,61,94,0.2);margin-top:4px;">
         <div style="font-size:14px;color:#D4AF37;letter-spacing:0.5px;margin-bottom:4px;">DISCORD · 类脑社区 · 玖神</div>
-        <div style="font-size:12px;color:#52504a;">完全免费，谨防上当 <span style="color:#3a5a7a;">v${DAOYUAN_VERSION}</span></div>
+        <div style="font-size:12px;color:#52504a;">完全免费，谨防上当</div>
+        <div style="font-size:12px;color:#3a5a7a;">v${DAOYUAN_VERSION}</div>
       </div>
     </div>
   </div>
