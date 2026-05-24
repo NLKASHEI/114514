@@ -542,7 +542,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
       </div>
       <div style="text-align:center;padding:12px 16px 14px;border-top:1px solid rgba(28,61,94,0.2);margin-top:4px;">
         <div style="font-size:14px;color:#D4AF37;letter-spacing:0.5px;margin-bottom:4px;">DISCORD · 类脑社区 · 玖神</div>
-        <div style="font-size:12px;color:#52504a;">完全免费，谨防上当 <span style="color:#3a5a7a;">v' + DAOYUAN_VERSION + '</span></div>
+        <div style="font-size:12px;color:#52504a;">完全免费，谨防上当 <span style="color:#3a5a7a;">v${DAOYUAN_VERSION}</span></div>
       </div>
     </div>
   </div>
