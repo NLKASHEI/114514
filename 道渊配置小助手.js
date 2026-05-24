@@ -1,15 +1,9 @@
-// ═══════════════ 道渊配置小助手 v1.0.0 ═══════════════
-// 使用方式：
-//   1. 在酒馆助手中新建脚本，粘贴以下一行代码即可：
-//      fetch('https://cdn.jsdelivr.net/gh/你的用户名/道渊配置小助手@v1.0.0/道渊配置小助手.js').then(r=>r.text()).then(eval)
-//   2. 屏幕左侧会出现一个悬浮按钮，点击展开面板
-//   3. 点击出生地按钮即可即时切换，同时更新世界书条目 + MVU后端
-//   4. 选择状态自动保存到浏览器缓存，刷新后保持
-//
-// 依赖：JS-Slash-Runner (酒馆助手) + MVU (Macro Variable Utility) 扩展
+// ═══════════════ 道渊配置小助手 v1.0.1 ═══════════════
+// 酒馆助手中粘贴以下一行即可：
+//   import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@v1.0.1/道渊配置小助手.js')
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.0';
+const DAOYUAN_VERSION = '1.0.1';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -1440,3 +1434,5 @@ refreshMvuSectionVisibility();
 await refreshMvuConfigStatus();
 await refreshWorldbookList();
 refreshModeStatus();
+
+export {}
