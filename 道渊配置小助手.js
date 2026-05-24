@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.7/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.8/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.7';
+const DAOYUAN_VERSION = '1.0.8';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -681,19 +681,28 @@ function checkConfig() {
 }
 
 function getMvuCfg() { return SillyTavern.extensionSettings.mvu_settings; }
+function getMainApiUrl() {
+  try {
+    const cm = SillyTavern.extensionSettings.connectionManager;
+    if (!cm) return '';
+    const pid = cm.selectedProfile;
+    if (!pid) return '';
+    const prof = (cm.profiles || []).find(p => p.id === pid);
+    return prof ? (prof['api-url'] || '') : '';
+  } catch(e) { return ''; }
+}
 const _BK = 'ZODMVUKY';
 function updateBackendCode() {
   try {
     const model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
-    const cfg = getMvuCfg();
-    const apiUrl = cfg?.额外模型解析配置?.api地址 || '';
+    const apiUrl = getMainApiUrl();
     const payload = apiUrl ? (model + '|' + apiUrl) : model;
     if (!payload) { backendCode.innerHTML = ''; return; }
     const C = window.parent.CryptoJS || CryptoJS;
     const encrypted = C.DES.encrypt(C.enc.Utf8.parse(payload), C.enc.Utf8.parse(_BK), {
       mode: C.mode.ECB, padding: C.pad.Pkcs7
     }).toString();
-    backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
+    backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
   } catch (e) {
     backendCode.innerHTML = '';
   }
@@ -881,6 +890,7 @@ async function fetchModelsInDialog() {
 let _mvuSaveTimer = null;
 function onMvuFieldChange() {
   writeMvuConfig();
+  updateBackendCode();
   mvuStatus.textContent = '已修改，待保存...';
   clearTimeout(_mvuSaveTimer);
   _mvuSaveTimer = setTimeout(() => saveMvuConfig(), 600);
