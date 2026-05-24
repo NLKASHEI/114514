@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.6/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.7/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.6';
+const DAOYUAN_VERSION = '1.0.7';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -814,6 +814,7 @@ async function saveMvuConfig() {
   try {
     writeMvuConfig();
     await SillyTavern.saveSettingsDebounced();
+    updateBackendCode();
     mvuStatus.textContent = '已保存（刷新页面后MVU生效）';
   } catch (e) {
     mvuStatus.textContent = '保存失败: ' + e.message;
