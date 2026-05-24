@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.3/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.0.4/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.0.3';
+const DAOYUAN_VERSION = '1.0.4';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -897,7 +897,12 @@ const EJS_OPTIMAL = {
 function checkEjsTemplate() {
   try {
     const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
-    if (!ejs) { ejsStatus.innerHTML = '🔴 提示词模板(EJS)插件未安装'; return; }
+    if (!ejs) { ejsStatus.innerHTML = '🔴 提示词模板未安装，请前往插件区手动安装'; return; }
+    const disabled = SillyTavern.extensionSettings.disabledExtensions || [];
+    if (disabled.includes('third-party/ST-Prompt-Template')) {
+      ejsStatus.innerHTML = '🟠 提示词模板已禁用，请前往扩展列表手动开启';
+      return;
+    }
     const issues = [];
     for (const [k, v] of Object.entries(EJS_OPTIMAL)) {
       if (ejs[k] !== v) issues.push(k + ': 当前' + JSON.stringify(ejs[k]) + ' 应为' + JSON.stringify(v));
@@ -914,7 +919,12 @@ function checkEjsTemplate() {
 function applyOptimalEjs() {
   try {
     const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
-    if (!ejs) { showToast('提示词模板插件未安装'); return; }
+    if (!ejs) { showToast('提示词模板未安装，请前往插件区手动安装'); return; }
+    const disabled = SillyTavern.extensionSettings.disabledExtensions || [];
+    if (disabled.includes('third-party/ST-Prompt-Template')) {
+      showToast('提示词模板已禁用，请前往扩展列表手动开启');
+      return;
+    }
     Object.assign(ejs, EJS_OPTIMAL);
     SillyTavern.saveSettingsDebounced();
     checkEjsTemplate();
