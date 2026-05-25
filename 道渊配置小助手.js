@@ -439,12 +439,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
             <label class="bp-mvu-label">破限方案</label>
             <select class="bp-mvu-select" id="bp-mvu-jailbreak">
               <option value="使用内置破限">使用内置破限</option>
-              <option value="其他预设破限">其他预设破限</option>
             </select>
-          </div>
-          <div class="bp-mvu-row" id="bp-mvu-preset-name-row" style="display:none;">
-            <label class="bp-mvu-label">预设名称</label>
-            <input class="bp-mvu-input" id="bp-mvu-preset-name" placeholder="预设破限名称">
           </div>
           <div class="bp-mvu-row">
             <label class="bp-mvu-label">应答格式</label>
@@ -570,8 +565,6 @@ const mvuModelSource = p.document.getElementById('bp-mvu-model-source');
 const mvuCustomApi = p.document.getElementById('bp-mvu-custom-api');
 const mvuExtraPanel = p.document.getElementById('bp-mvu-extra-panel');
 const mvuJailbreak = p.document.getElementById('bp-mvu-jailbreak');
-const mvuPresetNameRow = p.document.getElementById('bp-mvu-preset-name-row');
-const mvuPresetName = p.document.getElementById('bp-mvu-preset-name');
 const mvuResponseFormat = p.document.getElementById('bp-mvu-response-format');
 const mvuRequestMode = p.document.getElementById('bp-mvu-request-mode');
 const mvuRequestCount = p.document.getElementById('bp-mvu-request-count');
@@ -899,10 +892,14 @@ function syncMvuToForm(cfg) {
 
   // 额外模型解析配置
   const em = cfg.额外模型解析配置 || {};
-  mvuJailbreak.value = em.破限方案 || '使用内置破限';
-  const isOtherPreset = em.破限方案 && em.破限方案 !== '使用内置破限';
-  mvuPresetNameRow.style.display = isOtherPreset ? '' : 'none';
-  mvuPresetName.value = em.其他预设名称 || '';
+  const jb = em.破限方案 || '使用内置破限';
+  // 确保预设值在下拉选项中存在（可能预设列表尚未加载）
+  if (![...mvuJailbreak.options].some(o => o.value === jb)) {
+    const opt = p.document.createElement('option');
+    opt.value = jb; opt.textContent = jb;
+    mvuJailbreak.appendChild(opt);
+  }
+  mvuJailbreak.value = jb;
   mvuResponseFormat.value = em.应答格式 || '聊天消息';
   mvuRequestMode.value = em.请求方式 || '依次请求，失败后重试';
   mvuRequestCount.value = em.请求次数 || 1;
@@ -951,7 +948,6 @@ function writeMvuConfig() {
   if (!cfg.额外模型解析配置) cfg.额外模型解析配置 = {};
   const em = cfg.额外模型解析配置;
   em.破限方案 = mvuJailbreak.value;
-  if (mvuJailbreak.value !== '使用内置破限') em.其他预设名称 = mvuPresetName.value;
   em.应答格式 = mvuResponseFormat.value;
   em.兼容假流式 = /假流/i.test(mvuModelName.value);
   em.请求方式 = mvuRequestMode.value;
@@ -1139,7 +1135,6 @@ async function applyOptimalMvuConfig() {
     cfg.额外模型解析配置 = cfg.额外模型解析配置 || {};
     const em = cfg.额外模型解析配置;
     em.破限方案 = '使用内置破限';
-    em.其他预设名称 = '';
     em.应答格式 = '聊天消息';
     em.请求方式 = '依次请求，失败后重试';
     em.请求次数 = 1;
@@ -1191,6 +1186,25 @@ function refreshModelSourceVisibility() {
   mvuCustomApi.style.display = (isExtra && isCustom) ? '' : 'none';
 }
 
+// 动态获取破限预设列表
+async function refreshPresetList() {
+  try {
+    const names = await TavernHelper.getPresetNames();
+    const current = mvuJailbreak.value;
+    mvuJailbreak.innerHTML = '<option value="使用内置破限">使用内置破限</option>';
+    if (Array.isArray(names)) {
+      for (const name of names) {
+        const opt = p.document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        mvuJailbreak.appendChild(opt);
+      }
+    }
+    if ([...mvuJailbreak.options].some(o => o.value === current)) {
+      mvuJailbreak.value = current;
+    }
+  } catch(e) { console.warn('[道渊配置小助手] 获取预设列表失败:', e); }
+}
+
 // 模式联动：MVU section仅MVU模式下可见
 function refreshMvuSectionVisibility() {
   mvuSection.style.display = getSelectedMode() === 'mvu' ? '' : 'none';
@@ -1216,12 +1230,12 @@ bubble.addEventListener('click', () => {
     panel.style.left = left + 'px';
     panel.style.top = top + 'px';
     panel.style.display = 'flex';
-    checkConfig(); refreshMvuSectionVisibility(); refreshMvuConfigStatus(); refreshWorldbookList(); checkEjsTemplate();
+    checkConfig(); refreshMvuSectionVisibility(); refreshMvuConfigStatus(); refreshPresetList(); refreshWorldbookList(); checkEjsTemplate();
   }
 });
 
 // 面板获得鼠标时自动刷新（用户可能中途手动改了设置）
-panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); updateBackendCode(); refreshWorldbookList(); checkEjsTemplate(); });
+panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); refreshPresetList(); updateBackendCode(); refreshWorldbookList(); checkEjsTemplate(); });
 
 // --- 工具：获取触摸/鼠标坐标 ---
 function getXY(e) {
@@ -1522,11 +1536,7 @@ mvuModelSource.addEventListener('change', () => {
   refreshModelSourceVisibility();
   onMvuFieldChange();
 });
-mvuJailbreak.addEventListener('change', () => {
-  mvuPresetNameRow.style.display = mvuJailbreak.value !== '使用内置破限' ? '' : 'none';
-  onMvuFieldChange();
-});
-mvuPresetName.addEventListener('input', onMvuFieldChange);
+mvuJailbreak.addEventListener('change', () => { onMvuFieldChange(); });
 mvuResponseFormat.addEventListener('change', onMvuFieldChange);
 mvuRequestMode.addEventListener('change', onMvuFieldChange);
 mvuRequestCount.addEventListener('input', onMvuFieldChange);
@@ -1664,6 +1674,7 @@ saveMode(getSelectedMode());
 refreshMvuSectionVisibility();
 
 await refreshMvuConfigStatus();
+await refreshPresetList();
 await refreshWorldbookList();
 refreshModeStatus();
 checkEjsTemplate();

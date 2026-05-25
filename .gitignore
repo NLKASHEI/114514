@@ -1,0 +1,39 @@
+# 临时/诊断文件
+_*.txt
+*.rar
+des*.js
+des*.html
+*测试*.js
+*测试*.html
+*诊断*.js
+*探路*.js
+*探路*.md
+*探测*.js
+*探图层*.js
+ejs检测*.js
+后台*.html
+开场*.html
+提示词*.js
+模型名称*.js
+出生地*.js
+出生地*.ejs
+
+# 旧版本文件
+旧*.html
+道渊创建角色.html
+道渊气运全库.txt
+道渊状态栏.html
+道渊输出格式.txt
+道渊变量更新规则.txt
+道渊小助手修复版.js
+初始变量.txt
+
+# MVU 探索
+MVU探索*.js
+MVU诊断*.js
+MVU配置测试*.js
+MVU配置结构探路.js
+MVU保存测试*.js
+
+# 其他
+ZOD.js
