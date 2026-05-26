@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.2/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.3/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.2';
+const DAOYUAN_VERSION = '1.1.3';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -451,9 +451,24 @@ p.document.body.insertAdjacentHTML('beforeend', `
             <select class="bp-mvu-select" id="bp-mvu-jailbreak">
               <option value="使用内置破限">使用内置破限</option>
               <option value="使用当前预设">使用当前预设</option>
+              <option value="使用其他预设">使用其他预设</option>
             </select>
           </div>
-          <div class="bp-mvu-hint">小猫之神预设请选择预设破限。如需使用其他预设破限，请手动前往MVU设置</div>
+          <div class="bp-mvu-hint">小猫之神预设请选择预设破限</div>
+          <div class="bp-mvu-row" id="bp-mvu-preset-row" style="display:none;">
+            <label class="bp-mvu-label">选择预设</label>
+            <select class="bp-mvu-select" id="bp-mvu-preset-name">
+              <option value="">-- 加载中... --</option>
+            </select>
+          </div>
+          <div class="bp-mvu-row">
+            <label class="bp-mvu-label">应答格式</label>
+            <select class="bp-mvu-select" id="bp-mvu-resp-format">
+              <option value="聊天消息">聊天消息</option>
+              <option value="工具调用">工具调用</option>
+              <option value="格式化输出">格式化输出</option>
+            </select>
+          </div>
           <div class="bp-mvu-row">
             <label class="bp-mvu-label">请求方式</label>
             <select class="bp-mvu-select" id="bp-mvu-request-mode">
@@ -569,6 +584,9 @@ const mvuModelSource = p.document.getElementById('bp-mvu-model-source');
 const mvuCustomApi = p.document.getElementById('bp-mvu-custom-api');
 const mvuExtraPanel = p.document.getElementById('bp-mvu-extra-panel');
 const mvuJailbreak = p.document.getElementById('bp-mvu-jailbreak');
+const mvuPresetRow = p.document.getElementById('bp-mvu-preset-row');
+const mvuPresetName = p.document.getElementById('bp-mvu-preset-name');
+const mvuRespFormat = p.document.getElementById('bp-mvu-resp-format');
 const mvuRequestMode = p.document.getElementById('bp-mvu-request-mode');
 const mvuRequestCount = p.document.getElementById('bp-mvu-request-count');
 const mvuAutoRequest = p.document.getElementById('bp-mvu-auto-request');
@@ -655,8 +673,8 @@ function showToast(msg) {
 }
 
 // --- 配置检测：检查模型名称 ---
-const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn'];
+const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia'];
 
 function checkConfig() {
   try {
@@ -899,44 +917,59 @@ function syncMvuToForm(cfg) {
   if (!cfg) cfg = getMvuCfg();
   if (!cfg) return;
 
+  const bu = ewcGetEwcYH();
+
   // 更新方式
-  mvuUpdateMode.value = cfg.更新方式 ?? '随AI输出';
-  mvuModelSource.value = cfg.额外模型解析配置?.模型来源 ?? '与插头相同';
+  mvuUpdateMode.value = cfg.更新方式 || bu.更新方式 || '随AI输出';
+  mvuModelSource.value = (cfg.额外模型解析配置?.模型来源) || bu.模型来源 || '与插头相同';
   const isExtra = cfg.更新方式 === '额外模型解析';
   mvuExtraPanel.style.display = isExtra ? '' : 'none';
 
-  // 额外模型解析配置
+  // 额外模型解析配置 — em优先，_ewcYH回退
   const em = cfg.额外模型解析配置 || {};
-  mvuJailbreak.value = em.破限方案 || '使用内置破限';
-  mvuRequestMode.value = em.请求方式 || '依次请求，失败后重试';
-  mvuRequestCount.value = em.请求次数 || 1;
-  mvuAutoRequest.checked = em.启用自动请求 !== false;
-  mvuApiUrl.value = em.api地址 || '';
-  mvuApiKey.value = em.密钥 || '';
-  if (em.模型名称) {
-    if (![...mvuModelName.options].some(o => o.value === em.模型名称)) {
-      mvuModelName.appendChild(p.document.createElement('option'));
-      mvuModelName.lastChild.value = em.模型名称;
-      mvuModelName.lastChild.textContent = em.模型名称;
-    }
-    mvuModelName.value = em.模型名称;
+  mvuJailbreak.value = em.破限方案 || bu.破限方案 || '使用内置破限';
+  mvuPresetRow.style.display = (mvuJailbreak.value === '使用其他预设') ? '' : 'none';
+  if (mvuJailbreak.value === '使用其他预设') {
+    const savedPreset = em.预设名称 || bu.预设名称 || '';
+    populatePresets(savedPreset);
   }
-  mvuMaxTokens.value = em.最大回复token数 || 65535;
-  mvuTemperature.value = em.温度 || 1;
-  mvuFreqPenalty.value = em.频率惩罚 || 0;
-  mvuPresPenalty.value = em.存在惩罚 || 0;
-  mvuTopP.value = em.top_p || 1;
-  mvuTopK.value = em.top_k || 0;
+  mvuRespFormat.value = em.应答格式 || bu.应答格式 || '聊天消息';
+  mvuRequestMode.value = em.请求方式 || bu.请求方式 || '依次请求，失败后重试';
+  mvuRequestCount.value = em.请求次数 ?? bu.请求次数 ?? 1;
+  mvuAutoRequest.checked = em.启用自动请求 ?? bu.启用自动请求 ?? true;
+  mvuApiUrl.value = em.api地址 || bu.api地址 || '';
+  mvuApiKey.value = em.密钥 || bu.密钥 || '';
+  const modelName = em.模型名称 || bu.模型名称 || '';
+  if (modelName) {
+    if (![...mvuModelName.options].some(o => o.value === modelName)) {
+      mvuModelName.appendChild(p.document.createElement('option'));
+      mvuModelName.lastChild.value = modelName;
+      mvuModelName.lastChild.textContent = modelName;
+    }
+    mvuModelName.value = modelName;
+  }
+  mvuMaxTokens.value = em.最大回复token数 ?? bu.最大回复token数 ?? 65535;
+  mvuTemperature.value = em.温度 ?? bu.温度 ?? 1;
+  mvuFreqPenalty.value = em.频率惩罚 ?? bu.频率惩罚 ?? 0;
+  mvuPresPenalty.value = em.存在惩罚 ?? bu.存在惩罚 ?? 0;
+  mvuTopP.value = em.top_p ?? bu.top_p ?? 1;
+  mvuTopK.value = em.top_k ?? bu.top_k ?? 0;
 
   // 自动清理变量
   const ac = cfg.自动清理变量 || {};
-  mvuAutoCleanEnable.checked = !!ac.启用;
-  mvuCleanPanel.style.display = ac.启用 ? '' : 'none';
-  mvuCleanInterval.value = ac.快照保留间隔 || 50;
-  mvuCleanRecent.value = ac.要保留变量的最近楼层数 || 20;
-  mvuCleanTrigger.value = ac.触发恢复变量的最近楼层数 || 10;
+  mvuAutoCleanEnable.checked = ac.启用 ?? bu.自动清理启用 ?? false;
+  mvuCleanPanel.style.display = (ac.启用 ?? bu.自动清理启用) ? '' : 'none';
+  mvuCleanInterval.value = ac.快照保留间隔 ?? bu.快照保留间隔 ?? 50;
+  mvuCleanRecent.value = ac.要保留变量的最近楼层数 ?? bu.保留变量最近楼层数 ?? 20;
+  mvuCleanTrigger.value = ac.触发恢复变量的最近楼层数 ?? bu.触发恢复变量最近楼层数 ?? 10;
 
   // 兼容性
+  // 优先 cfg.兼容性，回退 bu.兼容性
+  if (!cfg.兼容性 || Object.keys(cfg.兼容性).length === 0) {
+    if (bu.兼容性 && Object.keys(bu.兼容性).length > 0) {
+      cfg.兼容性 = { ...bu.兼容性 };
+    }
+  }
   buildCompatChecks();
 
   // 模型来源联动
@@ -952,9 +985,14 @@ function writeMvuConfig() {
   if (!cfg.额外模型解析配置) cfg.额外模型解析配置 = {};
   cfg.额外模型解析配置.模型来源 = mvuModelSource.value;
 
-  if (!cfg.额外模型解析配置) cfg.额外模型解析配置 = {};
   const em = cfg.额外模型解析配置;
   em.破限方案 = mvuJailbreak.value;
+  if (mvuJailbreak.value === '使用其他预设' && mvuPresetName) {
+    em.预设名称 = mvuPresetName.value;
+  } else {
+    delete em.预设名称;
+  }
+  em.应答格式 = mvuRespFormat.value;
   em.兼容假流式 = /假流/i.test(mvuModelName.value);
   em.请求方式 = mvuRequestMode.value;
   em.请求次数 = parseInt(mvuRequestCount.value) || 1;
@@ -979,6 +1017,365 @@ function writeMvuConfig() {
   // 兼容性
   const checks = mvuCompatChecks.querySelectorAll('.bp-mvu-compat-check');
   checks.forEach(cb => { if (cfg.兼容性) cfg.兼容性[cb.dataset.key] = cb.checked; });
+
+  // 双写到 _ewcYH 持久化备份
+  ewcBackupToEwcYH();
+}
+
+// ── _ewcYH 持久化备份 ──
+// 将所有面板管理的字段双写到 _ewcYH，供刷新后恢复（MVU初始化可能抹掉某些值）
+function ewcGetEwcYH() {
+  if (!SillyTavern.extensionSettings._ewcYH) SillyTavern.extensionSettings._ewcYH = {};
+  return SillyTavern.extensionSettings._ewcYH;
+}
+function ewcBackupToEwcYH() {
+  const cfg = getMvuCfg(); if (!cfg) return;
+  const bu = ewcGetEwcYH();
+  bu.更新方式 = cfg.更新方式;
+  const em = cfg.额外模型解析配置 || {};
+  bu.破限方案 = em.破限方案;
+  bu.预设名称 = em.预设名称;
+  bu.应答格式 = em.应答格式;
+  bu.兼容假流式 = em.兼容假流式;
+  bu.请求方式 = em.请求方式;
+  bu.请求次数 = em.请求次数;
+  bu.启用自动请求 = em.启用自动请求;
+  bu.api地址 = em.api地址;
+  bu.密钥 = em.密钥;
+  bu.模型名称 = em.模型名称;
+  bu.模型来源 = em.模型来源;
+  bu.最大回复token数 = em.最大回复token数;
+  bu.温度 = em.温度;
+  bu.频率惩罚 = em.频率惩罚;
+  bu.存在惩罚 = em.存在惩罚;
+  bu.top_p = em.top_p;
+  bu.top_k = em.top_k;
+  const ac = cfg.自动清理变量 || {};
+  bu.自动清理启用 = ac.启用;
+  bu.快照保留间隔 = ac.快照保留间隔;
+  bu.保留变量最近楼层数 = ac.要保留变量的最近楼层数;
+  bu.触发恢复变量最近楼层数 = ac.触发恢复变量的最近楼层数;
+  if (cfg.兼容性) bu.兼容性 = { ...cfg.兼容性 };
+}
+// 启动时：把 _ewcYH 里非空的值恢复到 mvu_settings（只补MVU初始化抹掉的值）
+function ewcRestoreFromEwcYH() {
+  const cfg = getMvuCfg(); const bu = ewcGetEwcYH();
+  if (!cfg || !bu) return;
+  if (!cfg.更新方式 && bu.更新方式) cfg.更新方式 = bu.更新方式;
+  if (!cfg.额外模型解析配置) cfg.额外模型解析配置 = {};
+  const em = cfg.额外模型解析配置;
+  if (!em.破限方案 && bu.破限方案) em.破限方案 = bu.破限方案;
+  if (!em.预设名称 && bu.预设名称) em.预设名称 = bu.预设名称;
+  if (!em.应答格式 && bu.应答格式) em.应答格式 = bu.应答格式;
+  if (em.兼容假流式 === undefined && bu.兼容假流式 !== undefined) em.兼容假流式 = bu.兼容假流式;
+  if (!em.请求方式 && bu.请求方式) em.请求方式 = bu.请求方式;
+  if (em.请求次数 === undefined && bu.请求次数 !== undefined) em.请求次数 = bu.请求次数;
+  if (em.启用自动请求 === undefined && bu.启用自动请求 !== undefined) em.启用自动请求 = bu.启用自动请求;
+  if (!em.api地址 && bu.api地址) em.api地址 = bu.api地址;
+  if (!em.密钥 && bu.密钥) em.密钥 = bu.密钥;
+  if (!em.模型名称 && bu.模型名称) em.模型名称 = bu.模型名称;
+  if (!em.模型来源 && bu.模型来源) em.模型来源 = bu.模型来源;
+  if (em.最大回复token数 === undefined && bu.最大回复token数 !== undefined) em.最大回复token数 = bu.最大回复token数;
+  if (em.温度 === undefined && bu.温度 !== undefined) em.温度 = bu.温度;
+  if (em.频率惩罚 === undefined && bu.频率惩罚 !== undefined) em.频率惩罚 = bu.频率惩罚;
+  if (em.存在惩罚 === undefined && bu.存在惩罚 !== undefined) em.存在惩罚 = bu.存在惩罚;
+  if (em.top_p === undefined && bu.top_p !== undefined) em.top_p = bu.top_p;
+  if (em.top_k === undefined && bu.top_k !== undefined) em.top_k = bu.top_k;
+  if (!cfg.自动清理变量) cfg.自动清理变量 = {};
+  const ac = cfg.自动清理变量;
+  if (ac.启用 === undefined && bu.自动清理启用 !== undefined) ac.启用 = bu.自动清理启用;
+  if (ac.快照保留间隔 === undefined && bu.快照保留间隔 !== undefined) ac.快照保留间隔 = bu.快照保留间隔;
+  if (ac.要保留变量的最近楼层数 === undefined && bu.保留变量最近楼层数 !== undefined) ac.要保留变量的最近楼层数 = bu.保留变量最近楼层数;
+  if (ac.触发恢复变量的最近楼层数 === undefined && bu.触发恢复变量最近楼层数 !== undefined) ac.触发恢复变量的最近楼层数 = bu.触发恢复变量最近楼层数;
+  if (!cfg.兼容性) cfg.兼容性 = {};
+  if (bu.兼容性) {
+    for (const [k, v] of Object.entries(bu.兼容性)) {
+      if (cfg.兼容性[k] === undefined) cfg.兼容性[k] = v;
+    }
+  }
+}
+
+// ── DOM 事件模拟：通过 runInParent 在父页面找到 MVU 自身的表单元素，设值并派发事件 ──
+// MVU 内部缓存仅在其自身 UI 事件监听器触发时更新，所以需要直接操作它的 DOM
+function ewcSyncMvuDom() {
+  return runInParent(`(async () => {
+  var doc = document;
+  var cfg = SillyTavern.getContext().extensionSettings.mvu_settings;
+  if (!cfg) return 'no cfg';
+  var em = cfg.额外模型解析配置 || {};
+  var ac = cfg.自动清理变量 || {};
+  var compat = cfg.兼容性 || {};
+
+  // 工具：原生设值 + 派发事件（兼容React受控组件）
+  function setVal(el, val) {
+    if (!el) return;
+    if (el.type === 'checkbox') {
+      var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'checked');
+      if (desc && desc.set) { desc.set.call(el, !!val); } else { el.checked = !!val; }
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (el.tagName === 'SELECT') {
+      el.value = val;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    } else {
+      var desc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+      if (desc && desc.set) { desc.set.call(el, val); } else { el.value = val; }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  // 在MVU section内按label文本找表单元素
+  function findField(labelText) {
+    var sections = doc.querySelectorAll('.mvu-section');
+    for (var i = 0; i < sections.length; i++) {
+      var labels = sections[i].querySelectorAll('label, span, strong');
+      for (var j = 0; j < labels.length; j++) {
+        if (labels[j].textContent.trim() === labelText) {
+          var field = labels[j].closest('.mvu-field') || labels[j].parentElement;
+          return field.querySelector('input, select, textarea');
+        }
+      }
+    }
+    return null;
+  }
+
+  // 找 range+number 组合的number input
+  function findRangeNumber(labelText) {
+    var sections = doc.querySelectorAll('.mvu-section');
+    for (var i = 0; i < sections.length; i++) {
+      var labels = sections[i].querySelectorAll('label, span, strong');
+      for (var j = 0; j < labels.length; j++) {
+        if (labels[j].textContent.trim() === labelText) {
+          var field = labels[j].closest('.mvu-field') || labels[j].parentElement;
+          return field.querySelector('input[type="number"]');
+        }
+      }
+    }
+    return null;
+  }
+
+  // 找到所有details并展开
+  var details = doc.querySelectorAll('.mvu-section details');
+  var savedStates = [];
+  for (var d = 0; d < details.length; d++) { savedStates.push(details[d].open); details[d].open = true; }
+
+  try {
+    // 破限方案
+    var el = findField('破限方案');
+    if (el && em.破限方案) setVal(el, em.破限方案);
+
+    // 应答格式
+    el = findField('应答格式');
+    if (el && em.应答格式) setVal(el, em.应答格式);
+
+    // 兼容假流式
+    el = findField('兼容假流式');
+    if (el) setVal(el, !!em.兼容假流式);
+
+    // 请求方式
+    el = findField('请求方式');
+    if (el && em.请求方式) setVal(el, em.请求方式);
+
+    // 请求次数
+    el = findRangeNumber('请求次数');
+    if (el && em.请求次数 !== undefined) setVal(el, em.请求次数);
+
+    // 自动请求
+    el = findField('自动请求');
+    if (el) setVal(el, em.启用自动请求 !== false);
+
+    // API 地址
+    el = findField('API 地址');
+    if (el && em.api地址) setVal(el, em.api地址);
+
+    // API 密钥
+    el = findField('API 密钥');
+    if (el && em.密钥 !== undefined) setVal(el, em.密钥);
+
+    // 模型名称
+    el = findField('模型名称');
+    if (el && em.模型名称) setVal(el, em.模型名称);
+
+    // 模型来源
+    el = findField('模型来源');
+    if (el && em.模型来源) setVal(el, em.模型来源);
+
+    // 最大回复 token
+    el = findField('最大回复 token');
+    if (el && em.最大回复token数 !== undefined) setVal(el, em.最大回复token数);
+
+    // 温度
+    el = findRangeNumber('温度');
+    if (el && em.温度 !== undefined) setVal(el, em.温度);
+
+    // 频率惩罚
+    el = findRangeNumber('频率惩罚');
+    if (el && em.频率惩罚 !== undefined) setVal(el, em.频率惩罚);
+
+    // 存在惩罚
+    el = findRangeNumber('存在惩罚');
+    if (el && em.存在惩罚 !== undefined) setVal(el, em.存在惩罚);
+
+    // Top P
+    el = findRangeNumber('Top P');
+    if (el && em.top_p !== undefined) setVal(el, em.top_p);
+
+    // Top K
+    el = findRangeNumber('Top K');
+    if (el && em.top_k !== undefined) setVal(el, em.top_k);
+
+    // 自动清理变量
+    el = findField('启用');
+    if (el && ac.启用 !== undefined) setVal(el, !!ac.启用);
+    var snapEl = doc.getElementById('mvu_snapshot_keep_interval');
+    if (snapEl && ac.快照保留间隔 !== undefined) setVal(snapEl, ac.快照保留间隔);
+    var keepEl = doc.getElementById('mvu_keep_recent_floors');
+    if (keepEl && ac.要保留变量的最近楼层数 !== undefined) setVal(keepEl, ac.要保留变量的最近楼层数);
+    var restEl = doc.getElementById('mvu_restore_recent_floors');
+    if (restEl && ac.触发恢复变量的最近楼层数 !== undefined) setVal(restEl, ac.触发恢复变量的最近楼层数);
+
+    // 兼容性
+    var compatKeys = Object.keys(compat);
+    for (var c = 0; c < compatKeys.length; c++) {
+      el = findField(compatKeys[c]);
+      if (el) setVal(el, !!compat[compatKeys[c]]);
+    }
+
+    return 'ok';
+  } finally {
+    // 恢复details折叠状态
+    for (var r = 0; r < details.length; r++) { details[r].open = savedStates[r]; }
+  }
+})()`);
+}
+
+// ── 预设列表：从父页面 DOM 读取可用预设 ──
+let _presetCache = null;
+
+async function loadPresetList() {
+  if (_presetCache) return _presetCache;
+  try {
+    const result = await runInParent(`(async () => {
+      const primary = document.querySelector('#settings_preset_openai');
+      if (primary && primary.options && primary.options.length > 0) {
+        return [...primary.options].map(o => (o.textContent || '').trim()).filter(v => v);
+      }
+      const byAttr = document.querySelector('select[data-preset-manager-for="openai"]');
+      if (byAttr && byAttr.options && byAttr.options.length > 0) {
+        return [...byAttr.options].map(o => (o.textContent || '').trim()).filter(v => v);
+      }
+      return [];
+    })()`);
+    if (Array.isArray(result) && result.length) {
+      _presetCache = result;
+      return result;
+    }
+  } catch (e) {}
+  return [];
+}
+
+function populatePresets(selectedValue) {
+  const sel = mvuPresetName;
+  if (!sel) return;
+  sel.innerHTML = '<option value="">-- 加载中... --</option>';
+  loadPresetList().then(list => {
+    if (!list || !list.length) {
+      sel.innerHTML = '<option value="">-- 未找到预设 --</option>';
+      return;
+    }
+    sel.innerHTML = list.map(name => '<option value="' + name.replace(/"/g, '&quot;') + '">' + name + '</option>').join('');
+    if (selectedValue && [...sel.options].some(o => o.value === selectedValue)) {
+      sel.value = selectedValue;
+    }
+  }).catch(() => {
+    sel.innerHTML = '<option value="">-- 加载失败 --</option>';
+  });
+}
+
+// 同步预设名称到 MVU 原生「目标预设」select
+function syncMvuNativePreset(presetName) {
+  if (!presetName) return;
+  return runInParent(`(async () => {
+    var target = ${JSON.stringify(presetName)};
+    // 策略1：仅在 .mvu-section 内按 label "目标预设" 找
+    function findSelectNear(labelText) {
+      var sections = document.querySelectorAll('.mvu-section');
+      for (var i = 0; i < sections.length; i++) {
+        var labels = sections[i].querySelectorAll('label, span, strong, div');
+        for (var j = 0; j < labels.length; j++) {
+          var el = labels[j];
+          if (el.textContent.trim() !== labelText) continue;
+          var sib = el.nextElementSibling;
+          while (sib) {
+            if (sib.tagName === 'SELECT') return sib;
+            var s = sib.querySelector('select');
+            if (s) return s;
+            sib = sib.nextElementSibling;
+          }
+          var parent = el.closest('div,section,form,tr');
+          if (parent) { var s = parent.querySelector('select'); if (s) return s; }
+        }
+      }
+      return null;
+    }
+    var sel = findSelectNear('目标预设');
+    // 策略2：已知 ID 尝试
+    if (!sel) {
+      var ids = ['#mvu_target_preset', '#mvu-target-preset', 'select[data-mvu="target_preset"]',
+        'select[name="mvu_target_preset"]', '.mvu_preset_select', '.mvu-preset-select'];
+      for (var i = 0; i < ids.length; i++) {
+        sel = document.querySelector(ids[i]); if (sel) break;
+      }
+    }
+    // 策略3：仅在 .mvu-section 内按选项内容匹配（不再遍历全文档，避免误伤 #settings_preset_openai）
+    if (!sel) {
+      var sections = document.querySelectorAll('.mvu-section');
+      for (var si = 0; si < sections.length; si++) {
+        var selects = sections[si].querySelectorAll('select');
+        for (var sj = 0; sj < selects.length; sj++) {
+          var s = selects[sj];
+          if ([...s.options].some(function(o) { return o.value === target || o.textContent.trim() === target; })) {
+            sel = s; break;
+          }
+        }
+        if (sel) break;
+      }
+    }
+    if (!sel) return { ok: false, reason: '未找到目标预设 select' };
+    var opt = [...sel.options].find(o => o.value === target || o.textContent.trim() === target);
+    if (!opt) return { ok: false, reason: '下拉中不含: ' + target, options: [...sel.options].map(o => o.textContent.trim()) };
+    sel.value = opt.value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    return { ok: true, selected: opt.value };
+  })()`).catch(() => {});
+}
+
+// ── Fetch 劫持：拦截命中黑名单的主插头 API 请求（独立安全网） ──
+function ewcInjectFetchHook() {
+  if (p._ewcFetchHooked) return;
+  p._ewcFetchHooked = true;
+  const _origFetch = p.fetch.bind(p);
+  p.fetch = function(input, init) {
+    try {
+      const url = typeof input === 'string' ? input : (input?.url || '');
+      const mainApiUrl = getMainApiUrl().toLowerCase();
+      if (!mainApiUrl) return _origFetch(input, init);
+      const urlTrusted = CONFIG_URL_WHITELIST.some(kw => mainApiUrl.includes(kw));
+      if (urlTrusted) return _origFetch(input, init);
+      const mainModel = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
+      const isMainReq = url.toLowerCase().startsWith(mainApiUrl);
+      const isBlocked = isMainReq && CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
+      if (isBlocked) {
+        if (!p._ewcFetchBlockedOnce) {
+          p._ewcFetchBlockedOnce = true;
+          const toastr = p.toastr || window.toastr;
+          if (toastr && toastr.warning) toastr.warning('配置异常，请前往卡区询问原因', '请求已截断');
+        }
+        return Promise.reject(new Error('[EWC] 请求被截断：配置异常'));
+      }
+    } catch(e) {}
+    return _origFetch(input, init);
+  };
 }
 
 // 保存到磁盘
@@ -986,10 +1383,13 @@ async function saveMvuConfig() {
   try {
     writeMvuConfig();
     await saveSettings();
+    ewcSyncMvuDom().catch(() => {});
     updateBackendCode();
-    mvuStatus.textContent = '已保存（刷新页面后MVU生效）';
+    mvuStatus.textContent = '已保存';
+    mvuApplyBtn.disabled = false;
   } catch (e) {
     mvuStatus.textContent = '保存失败: ' + e.message;
+    mvuApplyBtn.disabled = false;
   }
 }
 
@@ -1055,6 +1455,7 @@ function onMvuFieldChange() {
   writeMvuConfig();
   updateBackendCode();
   mvuStatus.textContent = '已修改，待保存...';
+  mvuApplyBtn.disabled = true;
   clearTimeout(_mvuSaveTimer);
   _mvuSaveTimer = setTimeout(() => saveMvuConfig(), 600);
 }
@@ -1141,6 +1542,7 @@ async function applyOptimalMvuConfig() {
     cfg.额外模型解析配置 = cfg.额外模型解析配置 || {};
     const em = cfg.额外模型解析配置;
     em.破限方案 = '使用内置破限';
+    em.应答格式 = '聊天消息';
     em.请求方式 = '依次请求，失败后重试';
     em.请求次数 = 1;
     em.启用自动请求 = true;
@@ -1171,6 +1573,7 @@ async function applyOptimalMvuConfig() {
     cfg.额外模型解析配置.模型来源 = '自定义';
     cfg.更新方式 = '额外模型解析';
 
+    ewcBackupToEwcYH();
     await saveSettings();
 
     syncMvuToForm(cfg);
@@ -1519,7 +1922,17 @@ mvuModelSource.addEventListener('change', () => {
   refreshModelSourceVisibility();
   onMvuFieldChange();
 });
-mvuJailbreak.addEventListener('change', onMvuFieldChange);
+mvuJailbreak.addEventListener('change', () => {
+  const isOther = mvuJailbreak.value === '使用其他预设';
+  mvuPresetRow.style.display = isOther ? '' : 'none';
+  if (isOther) populatePresets(mvuPresetName.value || '');
+  onMvuFieldChange();
+});
+mvuRespFormat.addEventListener('change', onMvuFieldChange);
+mvuPresetName.addEventListener('change', () => {
+  onMvuFieldChange();
+  if (mvuPresetName.value) syncMvuNativePreset(mvuPresetName.value);
+});
 mvuRequestMode.addEventListener('change', onMvuFieldChange);
 mvuRequestCount.addEventListener('input', onMvuFieldChange);
 mvuAutoRequest.addEventListener('change', onMvuFieldChange);
@@ -1641,6 +2054,12 @@ async function applyMvuConfigFromForm() {
     const em = cfg.额外模型解析配置;
     em.模型来源 = mvuModelSource.value;
     em.破限方案 = mvuJailbreak.value;
+    if (mvuJailbreak.value === '使用其他预设' && mvuPresetName) {
+      em.预设名称 = mvuPresetName.value;
+    } else {
+      delete em.预设名称;
+    }
+    em.应答格式 = mvuRespFormat.value;
     em.兼容假流式 = /假流/i.test(mvuModelName.value);
     em.请求方式 = mvuRequestMode.value;
     em.请求次数 = parseInt(mvuRequestCount.value) || 1;
@@ -1665,14 +2084,21 @@ async function applyMvuConfigFromForm() {
     cfg.兼容性 = cfg.兼容性 || {};
     const checks = mvuCompatChecks.querySelectorAll('.bp-mvu-compat-check');
     checks.forEach(cb => { cfg.兼容性[cb.dataset.key] = cb.checked; });
+    clearTimeout(_mvuSaveTimer);
+    ewcBackupToEwcYH();
 
     await saveSettings();
 
-    syncMvuToForm(cfg);
-    mvuStatus.textContent = '已保存（刷新页面后MVU生效）';
+    await ewcSyncMvuDom().catch(() => {});
+    if (em.破限方案 === '使用其他预设' && em.预设名称) {
+      await syncMvuNativePreset(em.预设名称);
+    }
 
-    showToast('配置已应用，2秒后刷新页面...');
-    setTimeout(() => { window.parent.location.reload(); }, 2000);
+    syncMvuToForm(cfg);
+    mvuStatus.textContent = '配置已保存，即将刷新…';
+
+    showToast('配置已应用，1秒后刷新页面…');
+    setTimeout(() => { window.parent.location.reload(); }, 1000);
   } catch (e) {
     showToast('MVU配置失败: ' + e.message);
   }
@@ -1702,8 +2128,28 @@ bpConfirmCancel.addEventListener('click', () => {
 });
 
 // --- 初始化 ---
+// 1. 注入fetch劫持（最优先，防漏网请求）
+ewcInjectFetchHook();
+
+// 2. 从 _ewcYH 恢复被MVU初始化抹掉的值
+ewcRestoreFromEwcYH();
+
+// 3. 触发MVU DOM事件，同步内部缓存
+ewcSyncMvuDom().catch(() => {});
+
+// 4. 恢复预设名称并同步到MVU原生「目标预设」
+(function restorePreset() {
+  const bu = ewcGetEwcYH();
+  const cfg = getMvuCfg();
+  const em = cfg && cfg.额外模型解析配置;
+  if (bu.预设名称 && em && em.破限方案 === '使用其他预设') {
+    em.预设名称 = bu.预设名称;
+    syncMvuNativePreset(bu.预设名称);
+  }
+})();
+
 checkConfig();
-// 每15秒自动检测一次配置（模型切换后呼吸灯自动跟上，无需打开面板）
+// 每5秒自动检测一次配置（模型切换后呼吸灯自动跟上，无需打开面板）
 setInterval(() => { checkConfig(); updateBackendCode(); }, 5000);
 saveMode(getSelectedMode());
 refreshMvuSectionVisibility();
