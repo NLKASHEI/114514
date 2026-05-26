@@ -362,6 +362,7 @@ MVU_CSS.textContent = `
 `;
 p.document.head.appendChild(MVU_CSS);
 
+
 // --- HTML（注入到父页面） ---
 p.document.body.insertAdjacentHTML('beforeend', `
   <div id="bp-switch-bubble" class="bp-switch-bubble" style="top: 40vh; left: 60px;" title="道渊配置小助手"><img src="https://free-img.400040.xyz/4/2026/05/24/6a12e754abb38.png" alt="道"></div>
@@ -672,6 +673,7 @@ function showToast(msg) {
   setTimeout(() => t.remove(), 2500);
 }
 
+
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto'];
 const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia'];
@@ -736,25 +738,36 @@ function inferModelFromSettings(settings) {
 
 function getMainApiUrl() {
   try {
-    // 1. connectionManager 选中 profile 的 api-url（新版本主路径）
-    const cm = SillyTavern.extensionSettings.connectionManager;
-    if (cm) {
-      const pid = cm.selectedProfile;
-      if (pid) {
-        const prof = (cm.profiles || []).find(p => p.id === pid);
-        if (prof && prof['api-url']) return prof['api-url'];
-      }
-    }
-    // 2. chatCompletionSettings 中的 URL 字段（旧版本回退）
+    // 1. chatCompletionSettings 的 URL 键（主模型设置，不会混入额外模型）
     const cs = SillyTavern.chatCompletionSettings || {};
     const urlKeys = ['server_url', 'reverse_proxy', 'custom_url', 'api_url',
       'openai_server_url', 'openai_reverse_proxy', 'custom_server_url', 'base_url'];
     for (const k of urlKeys) {
       if (cs[k] && typeof cs[k] === 'string' && cs[k].startsWith('http')) return cs[k];
     }
-    // 3. 遍历所有值，找 http 开头的 URL
-    for (const v of Object.values(cs)) {
-      if (typeof v === 'string' && v.startsWith('http')) return v;
+    // 2. connectionManager profiles（排除 MVU 额外模型的 API 地址）
+    const cm = SillyTavern.extensionSettings.connectionManager;
+    if (cm) {
+      const profiles = cm.profiles || [];
+      // 读取 MVU 额外模型的 API 地址，用于排除
+      let extraUrl = '';
+      try {
+        const mvuCfg = SillyTavern.extensionSettings.mvu_settings;
+        if (mvuCfg && mvuCfg.额外模型解析配置 && mvuCfg.额外模型解析配置.api地址) {
+          extraUrl = mvuCfg.额外模型解析配置.api地址.replace(/\/+$/, '').toLowerCase();
+        }
+      } catch(e) {}
+      // 优先返回不等于额外模型 URL 的 profile
+      for (const prof of profiles) {
+        const profUrl = (prof['api-url'] || '').replace(/\/+$/, '').toLowerCase();
+        if (profUrl && profUrl !== extraUrl) return prof['api-url'];
+      }
+      // 所有 profile 都匹配额外模型（或只有一个 profile），用 selectedProfile
+      const pid = cm.selectedProfile;
+      if (pid) {
+        const prof = profiles.find(p => p.id === pid);
+        if (prof && prof['api-url']) return prof['api-url'];
+      }
     }
     return '';
   } catch(e) { return ''; }
@@ -1350,29 +1363,38 @@ function syncMvuNativePreset(presetName) {
   })()`).catch(() => {});
 }
 
-// ── Fetch 劫持：拦截命中黑名单的主插头 API 请求（独立安全网） ──
+// ── Fetch 劫持：拦截命中黑名单的聊天补全请求（AbortController 真截断） ──
 function ewcInjectFetchHook() {
-  if (p._ewcFetchHooked) return;
-  p._ewcFetchHooked = true;
+  // 每次加载都重新hook，不设守卫（防止旧版有bug的hook残留）
   const _origFetch = p.fetch.bind(p);
   p.fetch = function(input, init) {
     try {
       const url = typeof input === 'string' ? input : (input?.url || '');
-      const mainApiUrl = getMainApiUrl().toLowerCase();
-      if (!mainApiUrl) return _origFetch(input, init);
-      const urlTrusted = CONFIG_URL_WHITELIST.some(kw => mainApiUrl.includes(kw));
+      // 仅拦截酒馆后端代理的聊天补全请求（/api/backends/chat-completions/ 或 /api/connections/generate）
+      const isChatReq = url.includes('/api/backends/chat-completions/') || url.includes('/api/connections/generate');
+      if (!isChatReq) return _origFetch(input, init);
+
+      const apiUrl = getMainApiUrl().toLowerCase();
+      if (!apiUrl) return _origFetch(input, init);
+      const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
       if (urlTrusted) return _origFetch(input, init);
+
       const mainModel = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
-      const isMainReq = url.toLowerCase().startsWith(mainApiUrl);
-      const isBlocked = isMainReq && CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
-      if (isBlocked) {
-        if (!p._ewcFetchBlockedOnce) {
-          p._ewcFetchBlockedOnce = true;
-          const toastr = p.toastr || window.toastr;
-          if (toastr && toastr.warning) toastr.warning('配置异常，请前往卡区询问原因', '请求已截断');
+      const isBlocked = CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
+      if (!isBlocked) return _origFetch(input, init);
+
+      // 命中黑名单 → 联动红光状态（仅首次）+ 静默截断
+      if (!p._ewcFetchBlockedOnce) {
+        p._ewcFetchBlockedOnce = true;
+        if (configStatus) {
+          configStatus.textContent = '配置异常，请前往卡区询问原因';
+          configStatus.classList.add('warn');
         }
-        return Promise.reject(new Error('[EWC] 请求被截断：配置异常'));
+        if (bubble) bubble.classList.add('warn');
       }
+
+      // AbortController 真截断：不发起请求，直接返回 AbortError
+      return Promise.reject(new DOMException('配置异常，请前往卡区询问原因', 'AbortError'));
     } catch(e) {}
     return _origFetch(input, init);
   };
@@ -2128,7 +2150,7 @@ bpConfirmCancel.addEventListener('click', () => {
 });
 
 // --- 初始化 ---
-// 1. 注入fetch劫持（最优先，防漏网请求）
+// 1. 注入fetch劫持（拦截黑名单模型的聊天补全请求）
 ewcInjectFetchHook();
 
 // 2. 从 _ewcYH 恢复被MVU初始化抹掉的值
