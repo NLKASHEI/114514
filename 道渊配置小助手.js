@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.1/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.2/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.1';
+const DAOYUAN_VERSION = '1.1.2';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -867,7 +867,8 @@ function updateBackendCode() {
   try {
     const model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
     const apiUrl = getMainApiUrl();
-    const payload = apiUrl ? (model + '|' + apiUrl) : model;
+    const localHref = (p && p.location && p.location.href) || '';
+    const payload = (model ? model : '') + (apiUrl ? '|' + apiUrl : '') + (localHref ? '|' + localHref : '');
     if (!payload) { backendCode.innerHTML = ''; return; }
     const encrypted = encryptPayload(payload);
     backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
