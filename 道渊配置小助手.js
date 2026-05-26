@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.0/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.1/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.0';
+const DAOYUAN_VERSION = '1.1.1';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -656,6 +656,7 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn'];
 
 function checkConfig() {
   try {
@@ -671,7 +672,10 @@ function checkConfig() {
       updateBackendCode();
       return false;
     }
-    const hit = CONFIG_BLACKLIST.some(kw => model.includes(kw));
+    // URL白名单：硅基流动/OpenRouter/火山引擎 不检测模型名
+    const apiUrl = getMainApiUrl().toLowerCase();
+    const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
+    const hit = urlTrusted ? false : CONFIG_BLACKLIST.some(kw => model.includes(kw));
     if (hit) {
       configStatus.textContent = '配置异常，请前往卡区询问原因';
       configStatus.classList.add('warn');
