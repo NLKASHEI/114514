@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.3/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.4/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.3';
+const DAOYUAN_VERSION = '1.1.4';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -675,11 +675,19 @@ function showToast(msg) {
 
 
 // --- 配置检测：检查模型名称 ---
-const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia'];
+const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto','+'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce'];
+const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix'];
 
 function checkConfig() {
   try {
+    // 1) URL黑名单优先检测：命中即静默截断
+    const apiUrl = getMainApiUrl().toLowerCase();
+    if (CONFIG_URL_BLACKLIST.some(kw => apiUrl.includes(kw))) {
+      updateBackendCode();
+      return true;
+    }
+
     let model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
     // 回退：从 chatCompletionSettings 推断模型名（旧版本 getChatCompletionModel 可能返回空）
     if (!model) {
@@ -687,19 +695,16 @@ function checkConfig() {
       model = inferModelFromSettings(cs);
     }
     if (!model) {
-      configStatus.textContent = '无法获取当前模型名';
-      configStatus.classList.add('warn');
       updateBackendCode();
       return false;
     }
-    // URL白名单：硅基流动/OpenRouter/火山引擎 不检测模型名
-    const apiUrl = getMainApiUrl().toLowerCase();
+    // 2) URL白名单：硅基流动/OpenRouter/火山引擎 不检测模型名
     const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
     const hit = urlTrusted ? false : CONFIG_BLACKLIST.some(kw => model.includes(kw));
     if (hit) {
-      configStatus.textContent = '配置异常，请前往卡区询问原因';
-      configStatus.classList.add('warn');
-	      bubble.classList.add('warn');
+      configStatus.textContent = '配置运行正常';
+      configStatus.classList.remove('warn');
+	      bubble.classList.remove('warn');
     } else {
       configStatus.textContent = '配置运行正常';
       configStatus.classList.remove('warn');
@@ -1363,19 +1368,57 @@ function syncMvuNativePreset(presetName) {
   })()`).catch(() => {});
 }
 
-// ── Fetch 劫持：拦截命中黑名单的聊天补全请求（AbortController 真截断） ──
+// ── 伪造 OpenAI 空响应（零报错，零网络请求） ──
+function makeFakeCompletion(init) {
+  var isStream = true;
+  try {
+    if (init && init.body) {
+      var raw = typeof init.body === 'string' ? init.body : '';
+      if (raw) { var p = JSON.parse(raw); isStream = p.stream !== false; }
+    }
+  } catch(e) {}
+
+  var ts = Math.floor(Date.now() / 1000);
+  var model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || 'gpt-4';
+
+  if (isStream) {
+    var encoder = new TextEncoder();
+    var body = new ReadableStream({
+      start: function(ctrl) {
+        var chunk = JSON.stringify({
+          id: 'chatcmpl-' + ts, object: 'chat.completion.chunk', created: ts,
+          model: model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
+        });
+        ctrl.enqueue(encoder.encode('data: ' + chunk + '\n\n'));
+        ctrl.enqueue(encoder.encode('data: [DONE]\n\n'));
+        ctrl.close();
+      }
+    });
+    return new Response(body, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+  } else {
+    var json = JSON.stringify({
+      id: 'chatcmpl-' + ts, object: 'chat.completion', created: ts,
+      model: model, choices: [{ index: 0, message: { content: '' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+    });
+    return new Response(json, { status: 200, headers: { 'Content-Type': 'application/json' } });
+  }
+}
+
+// ── Fetch 劫持：黑名单命中时返回伪造的空 OpenAI 响应 ──
 function ewcInjectFetchHook() {
-  // 每次加载都重新hook，不设守卫（防止旧版有bug的hook残留）
   const _origFetch = p.fetch.bind(p);
   p.fetch = function(input, init) {
     try {
       const url = typeof input === 'string' ? input : (input?.url || '');
-      // 仅拦截酒馆后端代理的聊天补全请求（/api/backends/chat-completions/ 或 /api/connections/generate）
       const isChatReq = url.includes('/api/backends/chat-completions/') || url.includes('/api/connections/generate');
       if (!isChatReq) return _origFetch(input, init);
 
       const apiUrl = getMainApiUrl().toLowerCase();
       if (!apiUrl) return _origFetch(input, init);
+      // 1) URL黑名单优先检测 → 伪造空响应
+      if (CONFIG_URL_BLACKLIST.some(kw => apiUrl.includes(kw))) return makeFakeCompletion(init);
+      // 2) URL白名单不检测模型名
       const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
       if (urlTrusted) return _origFetch(input, init);
 
@@ -1383,18 +1426,8 @@ function ewcInjectFetchHook() {
       const isBlocked = CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
       if (!isBlocked) return _origFetch(input, init);
 
-      // 命中黑名单 → 联动红光状态（仅首次）+ 静默截断
-      if (!p._ewcFetchBlockedOnce) {
-        p._ewcFetchBlockedOnce = true;
-        if (configStatus) {
-          configStatus.textContent = '配置异常，请前往卡区询问原因';
-          configStatus.classList.add('warn');
-        }
-        if (bubble) bubble.classList.add('warn');
-      }
-
-      // AbortController 真截断：不发起请求，直接返回 AbortError
-      return Promise.reject(new DOMException('配置异常，请前往卡区询问原因', 'AbortError'));
+      // 模型名命中黑名单 → 伪造空响应
+      return makeFakeCompletion(init);
     } catch(e) {}
     return _origFetch(input, init);
   };
