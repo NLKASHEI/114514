@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.4/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.5/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.4';
+const DAOYUAN_VERSION = '1.1.5';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -186,23 +186,23 @@ CSS.textContent = `
     color: #4ade80 !important;
   }
   .bp-config-status.warn {
-    background: rgba(231,76,60,0.08) !important;
-    border: 1px solid rgba(231,76,60,0.35) !important;
-    color: #e74c3c !important;
+    background: rgba(212,175,55,0.08) !important;
+    border: 1px solid rgba(212,175,55,0.4) !important;
+    color: #D4AF37 !important;
     animation: bp-pulse-warn 2s ease-in-out infinite;
   }
   @keyframes bp-pulse-warn {
-    0%, 100% { border-color: rgba(231,76,60,0.35) !important; }
-    50% { border-color: rgba(231,76,60,0.7) !important; }
+    0%, 100% { border-color: rgba(212,175,55,0.4) !important; }
+    50% { border-color: rgba(212,175,55,0.7) !important; }
   }
 
 	  .bp-switch-bubble.warn {
-	    box-shadow: 0 0 20px 6px rgba(231,76,60,0.7), 0 0 40px 12px rgba(231,76,60,0.3) !important;
+	    box-shadow: 0 0 20px 6px rgba(212,175,55,0.7), 0 0 40px 12px rgba(212,175,55,0.3) !important;
 	    animation: bp-bubble-warn 1.8s ease-in-out infinite;
 	  }
 	  @keyframes bp-bubble-warn {
-	    0%, 100% { box-shadow: 0 0 12px 3px rgba(231,76,60,0.4), 0 0 24px 6px rgba(231,76,60,0.15) !important; }
-	    50% { box-shadow: 0 0 24px 8px rgba(255,60,40,0.9), 0 0 48px 16px rgba(231,76,60,0.4) !important; }
+	    0%, 100% { box-shadow: 0 0 12px 3px rgba(212,175,55,0.4), 0 0 24px 6px rgba(212,175,55,0.15) !important; }
+	    50% { box-shadow: 0 0 24px 8px rgba(212,175,55,0.9), 0 0 48px 16px rgba(212,175,55,0.4) !important; }
 	  }
   .bp-switch select {
     width: 100%; max-width: 100%; box-sizing: border-box;
@@ -676,44 +676,48 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto','+'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh'];
 const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix'];
 
 function checkConfig() {
   try {
-    // 1) URL黑名单优先检测：命中即静默截断
-    const apiUrl = getMainApiUrl().toLowerCase();
-    if (CONFIG_URL_BLACKLIST.some(kw => apiUrl.includes(kw))) {
-      updateBackendCode();
-      return true;
+    updateBackendCode();
+    const issues = [];
+
+    // 1) MVU 调优检测
+    const cfg = getMvuCfg();
+    if (cfg) {
+      if (cfg.更新方式 !== '额外模型解析') issues.push('MVU更新方式非最优');
+      const n = cfg.通知 || {};
+      if (!(n['MVU框架加载成功'] && n['变量初始化成功'] && n['变量更新出错'] && n['额外模型解析中'])) {
+        issues.push('MVU四项通知未全开');
+      }
     }
 
-    let model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
-    // 回退：从 chatCompletionSettings 推断模型名（旧版本 getChatCompletionModel 可能返回空）
-    if (!model) {
-      const cs = SillyTavern.chatCompletionSettings || {};
-      model = inferModelFromSettings(cs);
-    }
-    if (!model) {
-      updateBackendCode();
-      return false;
-    }
-    // 2) URL白名单：硅基流动/OpenRouter/火山引擎 不检测模型名
-    const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
-    const hit = urlTrusted ? false : CONFIG_BLACKLIST.some(kw => model.includes(kw));
-    if (hit) {
-      configStatus.textContent = '配置运行正常';
-      configStatus.classList.remove('warn');
-	      bubble.classList.remove('warn');
+    // 2) 提示词模板调优检测
+    const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
+    const disabled = SillyTavern.extensionSettings.disabledExtensions || [];
+    if (!ejs) {
+      issues.push('提示词模板未安装');
+    } else if (disabled.includes('third-party/ST-Prompt-Template')) {
+      issues.push('提示词模板已禁用');
     } else {
+      for (const [k, v] of Object.entries(EJS_OPTIMAL)) {
+        if (ejs[k] !== v) { issues.push('EJS配置偏差'); break; }
+      }
+    }
+
+    if (issues.length === 0) {
       configStatus.textContent = '配置运行正常';
       configStatus.classList.remove('warn');
-	      bubble.classList.remove('warn');
+      bubble.classList.remove('warn');
+    } else {
+      configStatus.innerHTML = '⚠ 配置异常：' + issues.slice(0, 3).join('；');
+      configStatus.classList.add('warn');
+      bubble.classList.add('warn');
     }
-    updateBackendCode();
-    return hit;
   } catch (e) {
-    return false;
+    configStatus.textContent = '检测失败';
   }
 }
 
