@@ -703,7 +703,7 @@ function checkConfig() {
       issues.push('提示词模板已禁用');
     } else {
       for (const [k, v] of Object.entries(EJS_OPTIMAL)) {
-        if (ejs[k] !== v) { issues.push('EJS配置偏差'); break; }
+        if (ejs[k] !== v) { issues.push('提示词模板配置差异'); break; }
       }
     }
 
