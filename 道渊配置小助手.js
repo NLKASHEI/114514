@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.5/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.6/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.5';
+const DAOYUAN_VERSION = '1.1.6';
 const p = window.parent || window;
 
 // 清理旧实例
@@ -160,6 +160,7 @@ CSS.textContent = `
     text-shadow: none !important; box-shadow: none !important;
   }
   .bp-switch-body { flex: 1; overflow-y: auto; padding: 14px 16px !important; }
+  .bp-switch-close { font-size: 18px; line-height: 1; padding: 2px 8px; min-width: unset; }
   .bp-switch-body::-webkit-scrollbar { width: 4px; }
   .bp-switch-body::-webkit-scrollbar-track { background: transparent; }
   .bp-switch-body::-webkit-scrollbar-thumb { background: rgba(74,144,226,0.12); border-radius: 2px; }
@@ -370,6 +371,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
     <div class="bp-switch-header" id="bp-switch-drag">
       <span class="bp-switch-header-title">道渊配置小助手</span>
       <button class="bp-switch-btn xs" id="bp-switch-refresh" title="刷新">刷新</button>
+      <button class="bp-switch-btn xs bp-switch-close" id="bp-switch-close" title="关闭">&times;</button>
     </div>
     <div class="bp-switch-body">
       <div class="bp-config-status" id="bp-config-status">配置运行正常</div>
@@ -634,6 +636,7 @@ const REGEX_XML_STATUSBAR = 'XML状态栏';
 const REGEX_MVU_STATUSBAR = 'MVU状态栏';
 const REGEX_LAST_THREE = '仅输出最后三条状态栏';
 const SCRIPT_NAMES_TOGGLE = ['ZOD', 'MVU'];
+const MVU_AUX_ENTRIES = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
 
 function getSelectedBirthplace() {
   for (const btn of birthBtns) {
@@ -676,8 +679,8 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto','+'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh'];
-const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'googleapis', 'groq', 'lingyiwanwu', 'minimax', 'mistral', 'moonshot', 'nanogpt', 'novita', 'openai', 'perplexity', 'pollinations', 'stepfun', 'together', 'x.ai', 'z.ai'];
+const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus'];
 
 function checkConfig() {
   try {
@@ -745,6 +748,59 @@ function inferModelFromSettings(settings) {
   return '';
 }
 
+// chat_completion_source → 可读名称
+const SOURCE_LABEL = {
+  openai: 'OpenAI', claude: 'Claude', makersuite: 'Google AI', google: 'Google AI',
+  mistralai: 'Mistral AI', deepseek: 'DeepSeek', xai: 'xAI Grok', openrouter: 'OpenRouter',
+  azure_openai: 'Azure OpenAI', custom: '自定义', cohere: 'Cohere', perplexity: 'Perplexity',
+  groq: 'Groq', ai21: 'AI21', siliconflow: 'SiliconFlow', electronhub: 'ElectronHub',
+  chutes: 'Chutes', nanogpt: 'NanoGPT', vertexai: 'Vertex AI', aimlapi: 'AIMLAPI',
+  pollinations: 'Pollinations', cometapi: 'CometAPI', moonshot: 'Moonshot',
+  fireworks: 'Fireworks', zai: 'Z.AI',
+};
+
+// chat_completion_source → 官方 API URL
+const SOURCE_URL = {
+  openai: 'https://api.openai.com/v1', claude: 'https://api.anthropic.com/v1',
+  makersuite: 'https://generativelanguage.googleapis.com/v1beta',
+  google: 'https://generativelanguage.googleapis.com/v1beta',
+  mistralai: 'https://api.mistral.ai/v1', deepseek: 'https://api.deepseek.com/v1',
+  xai: 'https://api.x.ai/v1', openrouter: 'https://openrouter.ai/api/v1',
+  azure_openai: '', custom: '', cohere: 'https://api.cohere.com/v1',
+  perplexity: 'https://api.perplexity.ai', groq: 'https://api.groq.com/openai/v1',
+  ai21: 'https://api.ai21.com/studio/v1', siliconflow: 'https://api.siliconflow.cn/v1',
+  electronhub: 'https://api.electronhub.com', chutes: 'https://api.chutes.ai',
+  nanogpt: 'https://api.nanogpt.com', vertexai: 'https://aiplatform.googleapis.com/v1',
+  aimlapi: 'https://api.aimlapi.com/v1', pollinations: 'https://api.pollinations.ai',
+  cometapi: 'https://api.cometapi.com', moonshot: 'https://api.moonshot.cn/v1',
+  fireworks: 'https://api.fireworks.ai/inference/v1', zai: 'https://api.z.ai',
+};
+
+function getCurrentSource() {
+  try {
+    // 1. 读 chatCompletionSettings
+    const cs = SillyTavern.chatCompletionSettings || {};
+    if (cs.chat_completion_source) return cs.chat_completion_source;
+    // 2. 反编译 getTokenizerModel 提取 source
+    const fn = SillyTavern.getTokenizerModel;
+    if (fn) {
+      const body = fn.toString();
+      const m = body.match(/\((\w+)\.chat_completion_source\s*==\s*chat_completion_sources\.(\w+)\)/);
+      if (m) return m[2].toLowerCase();
+    }
+  } catch (e) {}
+  return '';
+}
+
+function getReverseProxyUrl() {
+  try {
+    const cs = SillyTavern.chatCompletionSettings || {};
+    if (cs.reverse_proxy && typeof cs.reverse_proxy === 'string' && cs.reverse_proxy.startsWith('http')) {
+      return cs.reverse_proxy;
+    }
+  } catch (e) {}
+  return '';
+}
 function getMainApiUrl() {
   try {
     // 1. chatCompletionSettings 的 URL 键（主模型设置，不会混入额外模型）
@@ -906,10 +962,12 @@ function encryptPayload(payload) {
 function updateBackendCode() {
   try {
     const model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
-    const apiUrl = getMainApiUrl();
+    const source = getCurrentSource();
+    // 插头URL：反代 > 官方映射 > CM profile
+    const proxyUrl = getReverseProxyUrl();
+    const plugUrl = proxyUrl || SOURCE_URL[source] || getMainApiUrl() || '';
     const localHref = (p && p.location && p.location.href) || '';
-    const payload = (model ? model : '') + (apiUrl ? '|' + apiUrl : '') + (localHref ? '|' + localHref : '');
-    if (!payload) { backendCode.innerHTML = ''; return; }
+    const payload = model + '|' + (source || '') + '|' + (SOURCE_LABEL[source] || '') + '|' + plugUrl + '|' + localHref;
     const encrypted = encryptPayload(payload);
     backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
   } catch (e) {
@@ -1420,11 +1478,10 @@ function ewcInjectFetchHook() {
 
       const apiUrl = getMainApiUrl().toLowerCase();
       if (!apiUrl) return _origFetch(input, init);
-      // 1) URL黑名单优先检测 → 伪造空响应
+      // 1) URL白名单优先 → 官方源直接放行
+      if (CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw))) return _origFetch(input, init);
+      // 2) URL黑名单检测 → 伪造空响应
       if (CONFIG_URL_BLACKLIST.some(kw => apiUrl.includes(kw))) return makeFakeCompletion(init);
-      // 2) URL白名单不检测模型名
-      const urlTrusted = CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw));
-      if (urlTrusted) return _origFetch(input, init);
 
       const mainModel = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
       const isBlocked = CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
@@ -1684,7 +1741,17 @@ bubble.addEventListener('click', () => {
 // 面板获得鼠标时自动刷新（用户可能中途手动改了设置）
 panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); updateBackendCode(); refreshWorldbookList(); checkEjsTemplate(); });
 
-// --- 工具：获取触摸/鼠标坐标 ---
+// 关闭按钮
+const closeBtn = p.document.getElementById('bp-switch-close');
+if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); panel.style.display = 'none'; });
+
+// 点击面板外部关闭
+p.document.addEventListener('click', (e) => {
+  if (panel.style.display === 'none') return;
+  if (!panel.contains(e.target) && e.target !== bubble && !bubble.contains(e.target)) {
+    panel.style.display = 'none';
+  }
+});
 function getXY(e) {
   if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
   if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
@@ -1868,11 +1935,13 @@ async function doSwitchMode(mode) {
   const isXML = mode === 'xml';
   let errors = [];
 
-  // 1. 世界书："状态栏"条目
+  // 1. 世界书："状态栏"条目 + MVU辅助条目
   try {
     const wbMod = `(entries) => {` +
       `  var e = entries.find(function(x) { return x.name === ${JSON.stringify(ENTRY_STATUSBAR)}; });` +
       `  if (e) { e.enabled = ${isXML}; }` +
+      `  var mvuEntries = ${JSON.stringify(MVU_AUX_ENTRIES)};` +
+      `  entries.forEach(function(x) { if (mvuEntries.includes(x.name)) { x.enabled = ${!isXML}; } });` +
       `}`;
     await api_replaceWorldbook(wbName, wbMod);
   } catch (e) {
