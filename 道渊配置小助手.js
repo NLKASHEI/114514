@@ -1,11 +1,14 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.7/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.8/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.7';
+const DAOYUAN_VERSION = '1.1.8';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
+
+// 防重复加载
+if (!p._daoYuanLoaded) { p._daoYuanLoaded = true;
 
 // 清理旧实例
 const oldPanel = p.document.getElementById('bp-switch-panel');
@@ -2337,5 +2340,7 @@ await refreshMvuConfigStatus();
 await refreshWorldbookList();
 refreshModeStatus();
 checkEjsTemplate();
+
+} // end if (!p._daoYuanLoaded)
 
 export {}
