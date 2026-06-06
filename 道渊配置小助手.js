@@ -1,10 +1,11 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.6/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.7/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.6';
+const DAOYUAN_VERSION = '1.1.7';
 const p = window.parent || window;
+const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
 // 清理旧实例
 const oldPanel = p.document.getElementById('bp-switch-panel');
@@ -549,21 +550,27 @@ p.document.body.insertAdjacentHTML('beforeend', `
         </div><!-- end bp-mvu-manual-panel -->
         <div id="bp-mvu-status" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.6;"></div>
       </div>
-      <!-- 自定义确认弹窗 -->
-      <div id="bp-confirm-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:1000003;align-items:center;justify-content:center;">
-        <div id="bp-confirm-dialog" style="background:#101520;border:1px solid #D4AF37;border-radius:10px;padding:20px 24px;max-width:380px;width:90vw;text-align:left;color:#d0e0f0;font-size:13px;line-height:1.6;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
-          <div id="bp-confirm-msg" style="margin-bottom:12px;text-align:center;"></div>
-          <div id="bp-confirm-body" style="display:none;margin-bottom:12px;"></div>
-          <div style="display:flex;gap:10px;justify-content:center;">
-            <button class="bp-switch-btn xs" id="bp-confirm-cancel" style="min-width:64px;">取消</button>
-            <button class="bp-switch-btn primary" id="bp-confirm-ok" style="min-width:64px;margin-top:0;">确认</button>
-          </div>
-        </div>
-      </div>
       <div style="text-align:center;padding:12px 16px 14px;border-top:1px solid rgba(28,61,94,0.2);margin-top:4px;">
         <div style="font-size:14px;color:#D4AF37;letter-spacing:0.5px;margin-bottom:4px;">DISCORD · 类脑社区 · 玖神</div>
         <div style="font-size:12px;color:#52504a;">完全免费，谨防上当</div>
         <div style="font-size:12px;color:#3a5a7a;">v${DAOYUAN_VERSION}</div>
+      </div>
+    </div>
+  </div>
+`);
+
+// 独立弹窗——挂到顶层窗口，flex居中（避开父页面body可能的transform污染）
+ROOT.document.documentElement.insertAdjacentHTML('beforeend', `
+  <div id="bp-confirm-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100dvh;background:rgba(0,0,0,0.6);z-index:2147483646;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
+    <div id="bp-confirm-dialog" style="position:relative;background:#101520;border:1px solid #D4AF37;border-radius:10px;max-width:380px;width:min(92vw,460px);text-align:left;color:#d0e0f0;font-size:13px;line-height:1.6;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+      <div id="bp-confirm-drag" style="display:none;padding:12px 16px 8px;cursor:move;user-select:none;touch-action:none;border-bottom:1px solid rgba(28,61,94,0.15);text-align:center;font-size:14px;color:#87cefa;letter-spacing:1px;">MVU模型配置</div>
+      <div style="padding:16px 20px;">
+      <div id="bp-confirm-msg" style="margin-bottom:12px;text-align:center;"></div>
+      <div id="bp-confirm-body" style="display:none;margin-bottom:12px;"></div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="bp-switch-btn xs" id="bp-confirm-cancel" style="min-width:64px;">取消</button>
+        <button class="bp-switch-btn primary" id="bp-confirm-ok" style="min-width:64px;margin-top:0;">确认</button>
+      </div>
       </div>
     </div>
   </div>
@@ -620,11 +627,11 @@ const mvuApplyBtn = p.document.getElementById('bp-mvu-apply');
 const mvuStatus = p.document.getElementById('bp-mvu-status');
 const ejsOptimizeBtn = p.document.getElementById('bp-ejs-optimize');
 const ejsStatus = p.document.getElementById('bp-ejs-status');
-const bpConfirmOverlay = p.document.getElementById('bp-confirm-overlay');
-const bpConfirmMsg = p.document.getElementById('bp-confirm-msg');
-const bpConfirmBody = p.document.getElementById('bp-confirm-body');
-const bpConfirmOk = p.document.getElementById('bp-confirm-ok');
-const bpConfirmCancel = p.document.getElementById('bp-confirm-cancel');
+const bpConfirmOverlay = ROOT.document.getElementById('bp-confirm-overlay');
+const bpConfirmMsg = ROOT.document.getElementById('bp-confirm-msg');
+const bpConfirmBody = ROOT.document.getElementById('bp-confirm-body');
+const bpConfirmOk = ROOT.document.getElementById('bp-confirm-ok');
+const bpConfirmCancel = ROOT.document.getElementById('bp-confirm-cancel');
 
 const STORAGE_KEY = 'bp-switch-birthplace';
 const MODE_STORAGE_KEY = 'bp-statusbar-mode';
@@ -1745,9 +1752,10 @@ panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStat
 const closeBtn = p.document.getElementById('bp-switch-close');
 if (closeBtn) closeBtn.addEventListener('click', (e) => { e.stopPropagation(); panel.style.display = 'none'; });
 
-// 点击面板外部关闭
+// 点击面板外部关闭（弹窗内点击不关面板）
 p.document.addEventListener('click', (e) => {
   if (panel.style.display === 'none') return;
+  if (bpConfirmOverlay.contains(e.target)) return;
   if (!panel.contains(e.target) && e.target !== bubble && !bubble.contains(e.target)) {
     panel.style.display = 'none';
   }
@@ -2249,11 +2257,54 @@ mvuApplyBtn.addEventListener('click', async () => {
   await applyMvuConfigFromForm();
 });
 
-bpConfirmCancel.addEventListener('click', () => {
+bpConfirmCancel.addEventListener('click', (e) => {
+  e.stopPropagation();
   bpConfirmOverlay.style.display = 'none';
   bpConfirmBody.style.display = 'none';
   bpConfirmOk.textContent = '确认';
 });
+
+// 弹窗移动端拖拽（电脑端固定居中）
+const confirmDragHandle = ROOT.document.getElementById('bp-confirm-drag');
+const confirmDialog = ROOT.document.getElementById('bp-confirm-dialog');
+let _dlgTouchReady = false;
+// 首次触摸显示拖拽栏并准备拖拽
+function _dlgInitTouch() {
+  if (_dlgTouchReady) return; _dlgTouchReady = true;
+  if (confirmDragHandle) confirmDragHandle.style.display = '';
+  if (confirmDialog) {
+    // 从 fixed+transform 切换到 absolute，保持当前位置
+    const rect = confirmDialog.getBoundingClientRect();
+    confirmDialog.style.position = 'absolute';
+    confirmDialog.style.transform = 'none';
+    confirmDialog.style.left = rect.left + 'px';
+    confirmDialog.style.top = rect.top + 'px';
+    confirmDialog.style.maxWidth = '380px';
+  }
+}
+if (confirmDragHandle && confirmDialog) {
+  let dlgDrag = false, dlgSX, dlgSY, dlgLeft, dlgTop;
+  // 覆盖层点击关闭（手机端点遮罩）
+  bpConfirmOverlay.addEventListener('click', (e) => {
+    if (e.target === bpConfirmOverlay) {
+      bpConfirmOverlay.style.display = 'none';
+      bpConfirmBody.style.display = 'none';
+      bpConfirmOk.textContent = '确认';
+    }
+  });
+  confirmDragHandle.addEventListener('touchstart', (e) => {
+    if (!confirmDialog || !e.touches.length) return;
+    _dlgInitTouch(); // 只在真正拖拽时切换
+    dlgDrag = true; dlgSX = e.touches[0].clientX; dlgSY = e.touches[0].clientY;
+    dlgLeft = confirmDialog.offsetLeft; dlgTop = confirmDialog.offsetTop;
+  }, { passive: false });
+  ROOT.document.addEventListener('touchmove', (e) => {
+    if (!dlgDrag || !confirmDialog || !e.touches.length) return;
+    confirmDialog.style.left = (dlgLeft + e.touches[0].clientX - dlgSX) + 'px';
+    confirmDialog.style.top = (dlgTop + e.touches[0].clientY - dlgSY) + 'px';
+  }, { passive: false });
+  ROOT.document.addEventListener('touchend', () => { dlgDrag = false; });
+}
 
 // --- 初始化 ---
 // 1. 注入fetch劫持（拦截黑名单模型的聊天补全请求）
