@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.8/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.1.9/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.1.8';
+const DAOYUAN_VERSION = '1.1.9';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -1866,16 +1866,16 @@ async function refreshStatus() {
     const xu = entries.find(e => e.name === ENTRY_XUANTIAN);
     const xj = entries.find(e => e.name === ENTRY_XIANJIE);
 
-    // 条目数检测：=270绿 / <270红 / >270黄
+    // 条目数检测：=285绿 / <285红 / >285黄
     let countColor, countHint, countWarn;
-    if (entries.length === 270) {
+    if (entries.length === 285) {
       countColor = '#4ade80'; countHint = ''; countWarn = false;
-    } else if (entries.length < 270) {
+    } else if (entries.length < 285) {
       countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书'; countWarn = true;
     } else {
       countColor = '#f0d060'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
     }
-    wbCount.innerHTML = '当前版本条目数270，检测到 <b style="color:' + countColor + '">' + entries.length + '条</b>' + countHint;
+    wbCount.innerHTML = '当前版本条目数285，检测到 <b style="color:' + countColor + '">' + entries.length + '条</b>' + countHint;
 
     // 自动检测当前出生地：哪个条目已启用就激活对应按钮
     const saved = localStorage.getItem(STORAGE_KEY);
