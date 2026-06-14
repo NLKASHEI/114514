@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.2/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.3/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.2.2';
+const DAOYUAN_VERSION = '1.2.3';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -604,6 +604,18 @@ const mvuRequestMode = p.document.getElementById('bp-mvu-request-mode');
 const mvuRequestCount = p.document.getElementById('bp-mvu-request-count');
 const mvuAutoRequest = p.document.getElementById('bp-mvu-auto-request');
 const mvuApiUrl = p.document.getElementById('bp-mvu-api-url');
+
+// 气泡启动位置校正：防止因窗口尺寸变化导致拖出屏幕
+(function() {
+  var bw = bubble.offsetWidth || 44;
+  var bh = bubble.offsetHeight || 44;
+  var maxLeft = (p.innerWidth || window.innerWidth) - bw;
+  var maxTop = (p.innerHeight || window.innerHeight) - bh;
+  var curLeft = parseFloat(bubble.style.left) || 0;
+  var curTop = parseFloat(bubble.style.top) || 0;
+  if (curLeft < 0 || curLeft > maxLeft) bubble.style.left = '60px';
+  if (curTop < 0 || curTop > maxTop) bubble.style.top = '40vh';
+})();
 const mvuApiKey = p.document.getElementById('bp-mvu-api-key');
 const mvuFetchModelsBtn = p.document.getElementById('bp-mvu-fetch-models');
 const mvuModelName = p.document.getElementById('bp-mvu-model-name');
@@ -689,7 +701,7 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'openai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'openai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
 const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang'];
 
 function checkConfig() {
@@ -813,17 +825,16 @@ function getReverseProxyUrl() {
 }
 function getMainApiUrl() {
   try {
-    // 1. chatCompletionSettings 的 URL 键（主模型设置，不会混入额外模型）
-    const cs = SillyTavern.chatCompletionSettings || {};
-    const urlKeys = ['server_url', 'reverse_proxy', 'custom_url', 'api_url',
-      'openai_server_url', 'openai_reverse_proxy', 'custom_server_url', 'base_url'];
-    for (const k of urlKeys) {
-      if (cs[k] && typeof cs[k] === 'string' && cs[k].startsWith('http')) return cs[k];
-    }
-    // 2. connectionManager profiles（排除 MVU 额外模型的 API 地址）
+    // 1. 优先查 connectionManager 的选中 profile（最准确反映用户当前使用的 API）
     const cm = SillyTavern.extensionSettings.connectionManager;
     if (cm) {
       const profiles = cm.profiles || [];
+      const pid = cm.selectedProfile;
+      if (pid) {
+        const sp = profiles.find(p => p.id === pid);
+        const spUrl = sp && sp['api-url'];
+        if (spUrl && typeof spUrl === 'string' && spUrl.startsWith('http')) return spUrl;
+      }
       // 读取 MVU 额外模型的 API 地址，用于排除
       let extraUrl = '';
       try {
@@ -832,16 +843,22 @@ function getMainApiUrl() {
           extraUrl = mvuCfg.额外模型解析配置.api地址.replace(/\/+$/, '').toLowerCase();
         }
       } catch(e) {}
-      // 优先返回不等于额外模型 URL 的 profile
+      // 返回第一个不等于额外模型 URL 的 profile
       for (const prof of profiles) {
         const profUrl = (prof['api-url'] || '').replace(/\/+$/, '').toLowerCase();
         if (profUrl && profUrl !== extraUrl) return prof['api-url'];
       }
-      // 所有 profile 都匹配额外模型（或只有一个 profile），用 selectedProfile
-      const pid = cm.selectedProfile;
-      if (pid) {
-        const prof = profiles.find(p => p.id === pid);
-        if (prof && prof['api-url']) return prof['api-url'];
+    }
+    // 2. chatCompletionSettings（跳过 ST 本地代理地址，只取真实第三方 API URL）
+    const cs = SillyTavern.chatCompletionSettings || {};
+    const urlKeys = ['server_url', 'reverse_proxy', 'custom_url', 'api_url',
+      'openai_server_url', 'openai_reverse_proxy', 'custom_server_url', 'base_url'];
+    for (const k of urlKeys) {
+      const v = cs[k];
+      if (v && typeof v === 'string' && v.startsWith('http')) {
+        var lower = v.toLowerCase();
+        if (lower.includes('127.0.0.1') || lower.includes('localhost')) continue; // ST 本地代理，不是 API
+        return v;
       }
     }
     return '';
@@ -1775,19 +1792,24 @@ function onBubbleStart(e) {
   if (dragBubble) return;
   if (e.type === 'mousedown' && e.button !== 0) return;
   if (e.type === 'mousedown') e.preventDefault();
-  const p = getXY(e);
-  dragBubble = true; bSX = p.x; bSY = p.y;
-  bOL = bubble.offsetLeft; bOT = bubble.offsetTop;
+  var pt = getXY(e);
+  dragBubble = true; bSX = pt.x; bSY = pt.y;
+  var rect = bubble.getBoundingClientRect();
+  bOL = rect.left; bOT = rect.top;
   bubble.style.transition = 'none';
 }
 function onBubbleMove(e) {
   if (!dragBubble) return;
   e.preventDefault();
-  const p = getXY(e);
-  const newLeft = (bOL + p.x - bSX);
-  const newTop = (bOT + p.y - bSY);
-  bubble.style.left = newLeft + 'px';
-  bubble.style.top = newTop + 'px';
+  var pt = getXY(e);
+  var vw = p.innerWidth || window.innerWidth;
+  var vh = p.innerHeight || window.innerHeight;
+  var bw = bubble.offsetWidth || 44;
+  var bh = bubble.offsetHeight || 44;
+  var newLeft = bOL + pt.x - bSX;
+  var newTop = bOT + pt.y - bSY;
+  bubble.style.left = Math.max(0, Math.min(newLeft, vw - bw)) + 'px';
+  bubble.style.top = Math.max(0, Math.min(newTop, vh - bh)) + 'px';
 }
 function onBubbleEnd() {
   if (dragBubble) { bubble.style.transition = ''; dragBubble = false; }
@@ -1806,16 +1828,23 @@ function onPanelStart(e) {
   if (dragPanel) return;
   if (e.type === 'mousedown' && e.button !== 0) return;
   if (e.target.tagName === 'BUTTON') return;
-  const p = getXY(e);
-  dragPanel = true; pSX = p.x; pSY = p.y;
-  pOL = panel.offsetLeft; pOT = panel.offsetTop;
+  var pt = getXY(e);
+  dragPanel = true; pSX = pt.x; pSY = pt.y;
+  var rect = panel.getBoundingClientRect();
+  pOL = rect.left; pOT = rect.top;
 }
 function onPanelMove(e) {
   if (!dragPanel) return;
   e.preventDefault();
-  const p = getXY(e);
-  panel.style.left = (pOL + p.x - pSX) + 'px';
-  panel.style.top = (pOT + p.y - pSY) + 'px';
+  var pt = getXY(e);
+  var vw = p.innerWidth || window.innerWidth;
+  var vh = p.innerHeight || window.innerHeight;
+  var pw = panel.offsetWidth || 350;
+  var ph = panel.offsetHeight || 400;
+  var newLeft = pOL + pt.x - pSX;
+  var newTop = pOT + pt.y - pSY;
+  panel.style.left = Math.max(0, Math.min(newLeft, vw - pw)) + 'px';
+  panel.style.top = Math.max(0, Math.min(newTop, vh - ph)) + 'px';
 }
 function onPanelEnd() { dragPanel = false; }
 dragHandle.addEventListener('mousedown', onPanelStart);
