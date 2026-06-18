@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.3/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.4/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.2.3';
+const DAOYUAN_VERSION = '1.2.4';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -107,9 +107,10 @@ async function api_updateScriptTrees(modifier) {
   );
 }
 
-// --- CSS（注入到父页面，道渊配色） ---
+// --- CSS（注入到父页面，道渊品牌配色） ---
 const CSS = p.document.createElement('style');
 CSS.textContent = `
+  /* ═══════════ 道渊 · 蓝黑底 + 金蓝双色 ═══════════ */
   .bp-switch-bubble,
   .bp-switch-bubble:hover,
   .bp-switch-bubble:focus,
@@ -120,7 +121,7 @@ CSS.textContent = `
     background: transparent !important; border: none !important; border-radius: 50% !important;
     z-index: 1000000; cursor: pointer; display: flex; align-items: center;
     justify-content: center; touch-action: none;
-    box-shadow: 0 0 12px rgba(74,144,226,0.4) !important; outline: none !important;
+    box-shadow: 0 0 14px rgba(74,144,226,0.25) !important; outline: none !important;
     transition: left 0.3s cubic-bezier(0.18,0.89,0.32,1.28), box-shadow 0.2s;
     user-select: none; -webkit-user-select: none;
     padding: 0 !important; margin: 0 !important; overflow: hidden;
@@ -130,84 +131,95 @@ CSS.textContent = `
   }
   .bp-switch-bubble img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .bp-switch-bubble:hover {
-    box-shadow: 0 0 20px rgba(74,144,226,0.7) !important;
+    box-shadow: 0 0 22px rgba(74,144,226,0.45), 0 0 8px rgba(212,175,55,0.2) !important;
   }
   .bp-switch-panel {
     position: fixed !important; z-index: 999998;
-    background: rgba(10,15,25,0.97) !important;
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(28,61,94,0.5) !important;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.7), 0 0 30px rgba(74,144,226,0.06) !important;
+    background: rgba(8,12,20,0.94) !important;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(74,144,226,0.15) !important;
+    box-shadow: 0 8px 44px rgba(0,0,0,0.7), 0 0 60px rgba(74,144,226,0.04), inset 0 0 100px rgba(74,144,226,0.02) !important;
     font-family: 'Noto Serif SC','Inter','Microsoft YaHei',serif !important;
     display: flex; flex-direction: column; border-radius: 10px !important;
     color: #d0e0f0 !important; font-size: 13px;
     overflow: hidden; width: 320px; max-width: 92vw; max-height: 62vh; box-sizing: border-box;
     padding: 0 !important; margin: 0 !important;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
   .bp-switch-panel::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, #D4AF37, #f0d060, #D4AF37, transparent) !important;
-    opacity: 0.5; pointer-events: none;
+    content: ''; position: absolute; top: 0; left: 8px; right: 8px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.15), #D4AF37, rgba(212,175,55,0.15), transparent) !important;
+    opacity: 0.6; pointer-events: none; z-index: 1;
+  }
+  .bp-switch-panel::after {
+    content: ''; position: absolute; bottom: 0; left: 16px; right: 16px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(74,144,226,0.06), transparent) !important;
+    pointer-events: none;
   }
   .bp-switch-header {
     padding: 14px 16px 10px !important; display: flex; align-items: center;
     justify-content: space-between; cursor: move; user-select: none;
     touch-action: none; flex-shrink: 0;
-    border-bottom: 1px solid rgba(28,61,94,0.3) !important;
+    border-bottom: 1px solid rgba(74,144,226,0.1) !important;
     background: transparent !important; margin: 0 !important;
   }
   .bp-switch-header-title {
-    color: #87cefa !important; font-weight: 400; font-size: 18px;
+    color: #D4AF37 !important; font-weight: 400; font-size: 18px;
     font-family: 'Ma Shan Zheng', cursive !important;
-    letter-spacing: 2px; display: flex; align-items: center; gap: 8px;
+    letter-spacing: 3px; display: flex; align-items: center; gap: 8px;
     background: none !important; border: none !important;
-    text-shadow: none !important; box-shadow: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
   }
   .bp-switch-body { flex: 1; overflow-y: auto; padding: 14px 16px !important; }
-  .bp-switch-close { font-size: 18px; line-height: 1; padding: 2px 8px; min-width: unset; }
+  .bp-switch-close { font-size: 18px; line-height: 1; padding: 2px 8px; min-width: unset; color: #6a8098 !important; background: transparent !important; border: none !important; cursor: pointer; }
+  .bp-switch-close:hover { color: #e74c3c !important; }
   .bp-switch-body::-webkit-scrollbar { width: 4px; }
   .bp-switch-body::-webkit-scrollbar-track { background: transparent; }
   .bp-switch-body::-webkit-scrollbar-thumb { background: rgba(74,144,226,0.12); border-radius: 2px; }
   .bp-switch-section {
-    background: rgba(74,144,226,0.03) !important; border: 1px solid rgba(28,61,94,0.25) !important;
-    border-radius: 8px !important; padding: 14px !important; margin-bottom: 12px;
+    background: rgba(74,144,226,0.02) !important;
+    border: 1px solid rgba(74,144,226,0.08) !important;
+    border-radius: 8px !important; padding: 12px 14px !important; margin-bottom: 10px;
+    position: relative;
   }
+  .bp-switch-section::before { content: none; }
   .bp-switch-section-title {
-    font-size: 11px; color: #4a90e2 !important; font-weight: 600; letter-spacing: 1.2px;
-    margin-bottom: 10px;
-    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: #8aa0c0 !important; font-weight: 600; letter-spacing: 0.8px;
+    margin-bottom: 8px; padding-left: 6px; line-height: 1;
+    display: flex; align-items: center; gap: 4px;
     background: none !important; border: none !important;
-  }
-  .bp-switch-section-title::after {
-    content: ''; flex: 1; height: 1px;
-    background: linear-gradient(90deg, rgba(74,144,226,0.2), transparent);
+    border-left: 1.5px solid #D4AF37 !important;
   }
   .bp-config-status {
-    margin-bottom: 12px; padding: 10px 14px !important;
-    border-radius: 8px !important; font-size: 13px; font-weight: 600;
-    text-align: center; letter-spacing: 0.5px;
-    background: rgba(74,222,128,0.06) !important;
-    border: 1px solid rgba(74,222,128,0.25) !important;
-    color: #4ade80 !important;
+    margin-bottom: 10px; padding: 8px 12px !important;
+    border-radius: 5px !important; font-size: 12px; font-weight: 500;
+    text-align: center; letter-spacing: 0.3px; line-height: 1.5;
+    background: rgba(46,213,115,0.05) !important;
+    border: 1px solid rgba(46,213,115,0.12) !important;
+    color: #2ed573 !important;
+    position: relative;
   }
+  .bp-config-status::before { content: none; }
   .bp-config-status.warn {
-    background: rgba(212,175,55,0.08) !important;
-    border: 1px solid rgba(212,175,55,0.4) !important;
-    color: #D4AF37 !important;
-    animation: bp-pulse-warn 2s ease-in-out infinite;
+    background: rgba(231,76,60,0.06) !important;
+    border: 1px solid rgba(231,76,60,0.25) !important;
+    color: #e74c3c !important;
+    animation: bp-pulse-warn 2.5s ease-in-out infinite;
   }
   @keyframes bp-pulse-warn {
-    0%, 100% { border-color: rgba(212,175,55,0.4) !important; }
-    50% { border-color: rgba(212,175,55,0.7) !important; }
+    0%, 100% { box-shadow: 0 0 6px rgba(231,76,60,0.06); border-color: rgba(231,76,60,0.25) !important; }
+    50% { box-shadow: 0 0 14px rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.5) !important; }
   }
 
 	  .bp-switch-bubble.warn {
-	    box-shadow: 0 0 20px 6px rgba(212,175,55,0.7), 0 0 40px 12px rgba(212,175,55,0.3) !important;
-	    animation: bp-bubble-warn 1.8s ease-in-out infinite;
+	    box-shadow: 0 0 18px 5px rgba(231,76,60,0.5), 0 0 36px 10px rgba(231,76,60,0.18) !important;
+	    animation: bp-bubble-warn 2s ease-in-out infinite;
 	  }
 	  @keyframes bp-bubble-warn {
-	    0%, 100% { box-shadow: 0 0 12px 3px rgba(212,175,55,0.4), 0 0 24px 6px rgba(212,175,55,0.15) !important; }
-	    50% { box-shadow: 0 0 24px 8px rgba(212,175,55,0.9), 0 0 48px 16px rgba(212,175,55,0.4) !important; }
+	    0%, 100% { box-shadow: 0 0 8px 2px rgba(231,76,60,0.2), 0 0 16px 4px rgba(231,76,60,0.06) !important; }
+	    50% { box-shadow: 0 0 20px 6px rgba(255,70,50,0.6), 0 0 38px 10px rgba(231,76,60,0.25) !important; }
 	  }
   .bp-switch select {
     width: 100%; max-width: 100%; box-sizing: border-box;
@@ -223,88 +235,92 @@ CSS.textContent = `
   .bp-switch select:focus { border-color: #D4AF37 !important; outline: none; box-shadow: 0 0 0 2px rgba(212,175,55,0.1) !important; }
   .bp-switch select option { background: #101520 !important; color: #d0e0f0 !important; }
   .bp-switch-btn {
-    padding: 7px 14px !important; border-radius: 6px !important; cursor: pointer;
-    border: 1px solid #2a3a50 !important; background: rgba(74,144,226,0.06) !important;
-    color: #87cefa !important; font-size: 12px; font-weight: 500; font-family: inherit !important;
-    transition: all 0.2s; letter-spacing: 0.3px;
+    padding: 6px 12px !important; border-radius: 5px !important; cursor: pointer;
+    border: 1px solid #2a3a50 !important; background: rgba(74,144,226,0.05) !important;
+    color: #8aa0c0 !important; font-size: 12px; font-weight: 500; font-family: inherit !important;
+    transition: all 0.18s ease; letter-spacing: 0.2px;
     text-shadow: none !important; box-shadow: none !important;
     line-height: 1.4 !important; min-height: auto !important;
   }
   .bp-switch-btn:hover {
-    background: rgba(74,144,226,0.15) !important; border-color: #4a90e2 !important; color: #fff !important;
+    background: rgba(74,144,226,0.12) !important; border-color: #4a90e2 !important; color: #d0e0f0 !important;
+    transform: translateY(-1px);
   }
+  .bp-switch-btn:active { transform: translateY(0); }
   .bp-switch-btn.primary {
     width: 100% !important; display: block !important;
-    background: linear-gradient(160deg, #D4AF37, #b8941f) !important;
+    background: linear-gradient(160deg, #D4AF37 0%, #b8941f 40%, #8a6c14 100%) !important;
     border: 1px solid #D4AF37 !important; color: #080c14 !important;
     margin-top: 6px; padding: 10px !important; font-size: 13px; font-weight: 700 !important;
-    letter-spacing: 0.5px; text-shadow: none !important;
-    box-shadow: 0 2px 10px rgba(212,175,55,0.15) !important;
+    letter-spacing: 0.5px; text-shadow: 0 1px 0 rgba(255,220,120,0.3) !important;
+    box-shadow: 0 2px 10px rgba(212,175,55,0.2), inset 0 1px 0 rgba(255,255,255,0.1) !important;
     line-height: 1.4 !important; min-height: auto !important;
-    text-align: center !important;
+    text-align: center !important; border-radius: 6px !important;
   }
   .bp-switch-btn.primary:hover {
-    background: linear-gradient(160deg, #e0bc50, #c9a52a) !important;
-    border-color: #f0d060 !important; box-shadow: 0 4px 16px rgba(212,175,55,0.3) !important;
-    color: #080c14 !important;
+    background: linear-gradient(160deg, #e8c350 0%, #c9a42a 40%, #9e7e18 100%) !important;
+    border-color: #e8c350 !important; box-shadow: 0 4px 22px rgba(212,175,55,0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+    color: #040810 !important;
   }
   .bp-switch-btn.primary:disabled {
     opacity: 0.35; cursor: not-allowed; filter: grayscale(30%);
   }
   .bp-switch-btn.xs {
     padding: 4px 10px !important; font-size: 11px; width: auto; border-radius: 5px !important;
-    background: transparent !important; border-color: rgba(28,61,94,0.3) !important;
-    color: #4a90e2 !important; font-weight: 500 !important;
+    background: transparent !important; border-color: rgba(74,144,226,0.15) !important;
+    color: #6a8098 !important; font-weight: 500 !important;
     display: inline-block !important; box-shadow: none !important;
   }
   .bp-switch-btn.xs:hover {
-    border-color: #4a90e2 !important; color: #87cefa !important;
+    border-color: #4a90e2 !important; color: #8aa0c0 !important;
     background: rgba(74,144,226,0.08) !important;
   }
   .bp-switch-birth-btns {
     display: flex; gap: 10px; margin-bottom: 10px;
   }
   .bp-switch-birth-btn {
-    flex: 1; padding: 10px 0 !important; border-radius: 6px !important; cursor: pointer;
-    border: 1px solid #2a3a50 !important;
-    background: #101520 !important; color: #d0e0f0 !important;
-    font-size: 13px; font-weight: 500; font-family: inherit !important;
-    transition: all 0.25s; text-align: center !important;
-    letter-spacing: 0.5px;
+    flex: 1; padding: 8px 0 !important; border-radius: 5px !important; cursor: pointer;
+    border: 1px solid rgba(74,144,226,0.1) !important;
+    background: rgba(8,12,20,0.5) !important;
+    color: #6a8098 !important;
+    font-size: 12px; font-weight: 500; font-family: inherit !important;
+    transition: all 0.2s ease; text-align: center !important;
+    letter-spacing: 0.4px;
     text-shadow: none !important; box-shadow: none !important;
-    line-height: 1.4 !important;
+    line-height: 1.3 !important;
   }
   .bp-switch-birth-btn:hover {
-    background: rgba(74,144,226,0.12) !important; border-color: #4a90e2 !important;
-    color: #fff !important;
+    background: rgba(74,144,226,0.06) !important;
+    border-color: rgba(74,144,226,0.25) !important; color: #b0c8e8 !important;
   }
   .bp-switch-birth-btn.active {
-    background: #4a90e2 !important; border-color: #87cefa !important;
-    color: #fff !important;
-    box-shadow: 0 0 12px rgba(74,144,226,0.4) !important;
+    background: rgba(212,175,55,0.12) !important;
+    border-color: rgba(212,175,55,0.35) !important; color: #D4AF37 !important; font-weight: 600;
+    box-shadow: 0 0 10px rgba(212,175,55,0.1) !important;
   }
   .bp-switch-panel .bp-status-inline {
-    display: flex; align-items: center; gap: 8px; font-size: 12px;
+    display: flex; align-items: center; gap: 6px; font-size: 11px;
   }
   .bp-switch-panel .status-dot {
-    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+    transition: box-shadow 0.3s;
   }
   .bp-switch-panel .status-dot.on {
-    background: #4ade80;
-    box-shadow: 0 0 10px #4ade80, 0 0 20px rgba(74,222,128,0.4);
+    background: radial-gradient(circle at 30% 30%, #6dfc98, #0f7a3a);
+    box-shadow: 0 0 8px rgba(46,213,115,0.45), 0 0 16px rgba(46,213,115,0.1);
   }
   .bp-switch-panel .status-dot.off {
-    background: #e74c3c;
-    box-shadow: 0 0 10px #e74c3c, 0 0 20px rgba(231,76,60,0.4);
+    background: radial-gradient(circle at 30% 30%, #ff7a6a, #a81818);
+    box-shadow: 0 0 8px rgba(231,76,60,0.45), 0 0 16px rgba(231,76,60,0.1);
   }
-  .bp-switch-panel .status-dot.missing { background: #3a4a5a; box-shadow: none; }
-  .bp-switch-panel .status-label { color: #8fa4bc !important; }
+  .bp-switch-panel .status-dot.missing { background: #1c2a3a; box-shadow: inset 0 0 4px rgba(0,0,0,0.3); }
+  .bp-switch-panel .status-label { color: #8aa0c0 !important; font-size: 11px; }
   .bp-switch .toast {
     position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-    background: rgba(10,15,25,0.97) !important; border: 1px solid rgba(212,175,55,0.35) !important;
+    background: rgba(8,12,20,0.97) !important; border: 1px solid rgba(212,175,55,0.25) !important;
     border-radius: 8px !important; padding: 10px 24px !important; color: #D4AF37 !important;
     font-size: 13px; font-weight: 600; z-index: 1000002;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 10px rgba(212,175,55,0.06) !important;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.6), 0 0 12px rgba(212,175,55,0.06) !important;
     animation: bp-toast-in 0.3s ease, bp-toast-out 0.3s ease 2.2s forwards;
     letter-spacing: 0.3px; font-family: 'Noto Serif SC','Inter','Microsoft YaHei',serif !important;
     margin: 0 !important;
@@ -330,37 +346,37 @@ CSS.textContent = `
 `;
 p.document.head.appendChild(CSS);
 
-// 追加 MVU 配置表单 CSS
+// 追加 MVU 配置表单 CSS（道渊品牌配色）
 const MVU_CSS = p.document.createElement('style');
 MVU_CSS.textContent = `
-  .bp-mvu-row { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
-  .bp-mvu-row.col { flex-direction: column; align-items: stretch; gap: 2px; }
-  .bp-mvu-label { font-size: 13px; color: #8fa4bc; white-space: nowrap; flex-shrink: 0; min-width: 56px; letter-spacing: 0.3px; }
-  .bp-mvu-label.wide { min-width: 64px; }
-  .bp-mvu-input { flex: 1; padding: 5px 9px; border-radius: 5px; font-size: 13px; font-family: inherit; background: #101520 !important; border: 1px solid #2a3a50 !important; color: #d0e0f0 !important; transition: border-color 0.2s; min-width: 0; box-shadow: none !important; outline: none !important; }
-  .bp-mvu-input:focus { border-color: #4a90e2 !important; }
-  .bp-mvu-input.num { width: 58px; flex: 0 0 auto; text-align: center; padding: 5px 2px; }
-  .bp-mvu-select { flex: 1; padding: 5px 26px 5px 9px; border-radius: 5px; font-size: 13px; font-family: inherit; background: #101520 !important; border: 1px solid #2a3a50 !important; color: #d0e0f0 !important; cursor: pointer; -webkit-appearance: none; appearance: none; transition: border-color 0.2s; min-width: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23D4AF37' d='M5 7L1 3h8z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; box-shadow: none !important; outline: none !important; }
-  .bp-mvu-select:focus { border-color: #4a90e2 !important; }
-  .bp-mvu-check-row { display: flex; align-items: center; gap: 4px; margin-bottom: 1px; font-size: 13px; color: #b0c8e0; cursor: pointer; line-height: 1.4; }
+  .bp-mvu-row { display: flex; align-items: center; gap: 5px; margin-bottom: 2px; }
+  .bp-mvu-row.col { flex-direction: column; align-items: stretch; gap: 1px; }
+  .bp-mvu-label { font-size: 12px; color: #8aa0c0; white-space: nowrap; flex-shrink: 0; min-width: 52px; letter-spacing: 0.2px; }
+  .bp-mvu-label.wide { min-width: 60px; }
+  .bp-mvu-input { flex: 1; padding: 5px 8px; border-radius: 4px; font-size: 12px; font-family: inherit; background: #101520 !important; border: 1px solid #2a3a50 !important; color: #d0e0f0 !important; transition: border-color 0.18s; min-width: 0; box-shadow: inset 0 1px 2px rgba(0,0,0,0.25) !important; outline: none !important; }
+  .bp-mvu-input:focus { border-color: #D4AF37 !important; box-shadow: 0 0 0 2px rgba(212,175,55,0.08), inset 0 1px 2px rgba(0,0,0,0.25) !important; }
+  .bp-mvu-input.num { width: 52px; flex: 0 0 auto; text-align: center; padding: 5px 2px; }
+  .bp-mvu-select { flex: 1; padding: 5px 24px 5px 8px; border-radius: 4px; font-size: 12px; font-family: inherit; background: #101520 !important; border: 1px solid #2a3a50 !important; color: #d0e0f0 !important; cursor: pointer; -webkit-appearance: none; appearance: none; transition: border-color 0.18s; min-width: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%23D4AF37' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 7px center; box-shadow: none !important; outline: none !important; }
+  .bp-mvu-select:focus { border-color: #D4AF37 !important; box-shadow: 0 0 0 2px rgba(212,175,55,0.08) !important; }
+  .bp-mvu-check-row { display: flex; align-items: center; gap: 4px; margin-bottom: 1px; font-size: 12px; color: #8aa0c0; cursor: pointer; line-height: 1.3; }
   .bp-mvu-check-row input[type="checkbox"] { display: none !important; }
-  .bp-mvu-check-box { width: 14px; height: 14px; flex-shrink: 0; border: 1.5px solid #3a4a60; border-radius: 3px; background: #101520; transition: all 0.15s; display: inline-block; box-sizing: border-box; }
-  .bp-mvu-check-row input:checked ~ .bp-mvu-check-box { background: #4a90e2; border-color: #4a90e2; }
+  .bp-mvu-check-box { width: 13px; height: 13px; flex-shrink: 0; border: 1.5px solid rgba(74,144,226,0.2); border-radius: 2px; background: #101520; transition: all 0.15s; display: inline-block; box-sizing: border-box; }
+  .bp-mvu-check-row input:checked ~ .bp-mvu-check-box { background: #4a90e2; border-color: #4a90e2; box-shadow: 0 0 6px rgba(74,144,226,0.25); }
   .bp-mvu-check-row:hover .bp-mvu-check-box { border-color: #4a90e2; }
-  .bp-mvu-hint { font-size: 11px; color: #d0e0f0; line-height: 1.4; margin-top: 1px; }
-  .bp-mvu-subtitle { font-size: 10px; color: #D4AF37; letter-spacing: 0.8px; margin: 5px 0 2px; padding-top: 4px; border-top: 1px solid rgba(28,61,94,0.2); }
-  .bp-mvu-collapse-header { display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px; color: #4a90e2; padding: 3px 0; user-select: none; }
-  .bp-mvu-collapse-header:hover { color: #87cefa; }
-  .bp-mvu-collapse-arrow { display: inline-block; font-size: 8px; transition: transform 0.2s; }
+  .bp-mvu-hint { font-size: 10px; color: #6a8098; line-height: 1.3; margin-top: 1px; }
+  .bp-mvu-subtitle { font-size: 10px; color: #D4AF37; letter-spacing: 0.5px; margin: 4px 0 2px; padding-top: 3px; border-top: 1px solid rgba(74,144,226,0.1); }
+  .bp-mvu-collapse-header { display: flex; align-items: center; gap: 3px; cursor: pointer; font-size: 11px; color: #8aa0c0; padding: 2px 0; user-select: none; transition: color 0.18s; }
+  .bp-mvu-collapse-header:hover { color: #D4AF37; }
+  .bp-mvu-collapse-arrow { display: inline-block; font-size: 7px; transition: transform 0.2s; }
   .bp-mvu-collapse-arrow.open { transform: rotate(90deg); }
-  .bp-mvu-collapse-body { padding-left: 4px; }
-  .bp-mvu-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; }
-  #bp-mvu-section { padding: 10px 12px !important; }
-  #bp-mvu-section .bp-mvu-subtitle:first-of-type { margin-top: 2px; }
+  .bp-mvu-collapse-body { padding-left: 2px; }
+  .bp-mvu-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px 4px; }
+  #bp-mvu-section { padding: 8px 10px !important; }
+  #bp-mvu-section .bp-mvu-subtitle:first-of-type { margin-top: 1px; }
   #bp-mvu-section::-webkit-scrollbar { width: 3px; }
-  #bp-mvu-section::-webkit-scrollbar-thumb { background: rgba(74,144,226,0.15); border-radius: 2px; }
-  #bp-confirm-dialog { overflow: hidden !important; }
-  #bp-confirm-body { overflow: hidden; }
+  #bp-mvu-section::-webkit-scrollbar-thumb { background: rgba(74,144,226,0.12); border-radius: 2px; }
+  #bp-confirm-dialog { overflow: hidden !important; border-radius: 8px !important; }
+  #bp-confirm-body { overflow: hidden; font-size: 12px; }
   #bp-confirm-body .bp-mvu-select { max-width: 100%; width: 0; }
   #bp-confirm-body .bp-mvu-input { max-width: 100%; }
   #bp-confirm-body .bp-mvu-row { overflow: hidden; }
@@ -379,11 +395,11 @@ p.document.body.insertAdjacentHTML('beforeend', `
     </div>
     <div class="bp-switch-body">
       <div class="bp-config-status" id="bp-config-status">配置运行正常</div>
-      <div id="bp-backend-code" style="text-align:center;margin-bottom:10px;font-size:10px;color:#52504a;line-height:1.6;word-break:break-all;"></div>
+      <div id="bp-backend-code" style="text-align:center;margin-bottom:10px;font-size:10px;color:#6a5a42;line-height:1.6;word-break:break-all;"></div>
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">世界书</div>
         <select id="bp-wb-select"><option value="">-- 加载中... --</option></select>
-        <div id="bp-wb-count" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.6;"></div>
+        <div id="bp-wb-count" style="font-size:11px;color:#8aa0c0;margin-top:6px;text-align:center;line-height:1.6;"></div>
       </div>
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">切换出生地</div>
@@ -399,12 +415,12 @@ p.document.body.insertAdjacentHTML('beforeend', `
           <button class="bp-switch-birth-btn" data-mode="mvu">MVU</button>
           <button class="bp-switch-birth-btn" data-mode="xml">XML</button>
         </div>
-        <div id="bp-mode-status" style="font-size:11px;color:#8fa4bc;margin-top:8px;text-align:center;line-height:1.6;"></div>
+        <div id="bp-mode-status" style="font-size:11px;color:#8aa0c0;margin-top:8px;text-align:center;line-height:1.6;"></div>
       </div>
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">提示词模板</div>
         <button class="bp-switch-btn primary" id="bp-ejs-optimize" style="margin-bottom:4px;">一键最优配置</button>
-        <div id="bp-ejs-status" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.5;"></div>
+        <div id="bp-ejs-status" style="font-size:11px;color:#8aa0c0;margin-top:6px;text-align:center;line-height:1.5;"></div>
       </div>
       <div class="bp-switch-section" id="bp-mvu-section">
         <div class="bp-switch-section-title">MVU插件配置</div>
@@ -549,13 +565,13 @@ p.document.body.insertAdjacentHTML('beforeend', `
         <div class="bp-mvu-subtitle">兼容性</div>
         <div id="bp-mvu-compat-checks"></div>
         <!-- 操作 -->
-        <button class="bp-switch-btn primary" id="bp-mvu-apply" style="background:linear-gradient(160deg, #4a90e2, #357abd) !important;border-color:#4a90e2 !important;">应用配置（刷新页面）</button>
+        <button class="bp-switch-btn primary" id="bp-mvu-apply" style="background:#D4AF37 !important;border-color:#D4AF37 !important;">应用配置（刷新页面）</button>
         </div><!-- end bp-mvu-manual-panel -->
-        <div id="bp-mvu-status" style="font-size:11px;color:#8fa4bc;margin-top:6px;text-align:center;line-height:1.6;"></div>
+        <div id="bp-mvu-status" style="font-size:11px;color:#8aa0c0;margin-top:6px;text-align:left;line-height:1.6;"></div>
       </div>
-      <div style="text-align:center;padding:12px 16px 14px;border-top:1px solid rgba(28,61,94,0.2);margin-top:4px;">
+      <div style="text-align:center;padding:12px 16px 14px;border-top:1px solid rgba(74,144,226,0.12);margin-top:4px;">
         <div style="font-size:14px;color:#D4AF37;letter-spacing:0.5px;margin-bottom:4px;">DISCORD · 类脑社区 · 玖神</div>
-        <div style="font-size:12px;color:#52504a;">完全免费，谨防上当</div>
+        <div style="font-size:12px;color:#6a5a42;">完全免费，谨防上当</div>
         <div style="font-size:12px;color:#3a5a7a;">v${DAOYUAN_VERSION}</div>
       </div>
     </div>
@@ -565,8 +581,8 @@ p.document.body.insertAdjacentHTML('beforeend', `
 // 独立弹窗——挂到顶层窗口，flex居中（避开父页面body可能的transform污染）
 ROOT.document.documentElement.insertAdjacentHTML('beforeend', `
   <div id="bp-confirm-overlay" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100dvh;background:rgba(0,0,0,0.6);z-index:2147483646;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;">
-    <div id="bp-confirm-dialog" style="position:relative;background:#101520;border:1px solid #D4AF37;border-radius:10px;max-width:380px;width:min(92vw,460px);text-align:left;color:#d0e0f0;font-size:13px;line-height:1.6;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
-      <div id="bp-confirm-drag" style="display:none;padding:12px 16px 8px;cursor:move;user-select:none;touch-action:none;border-bottom:1px solid rgba(28,61,94,0.15);text-align:center;font-size:14px;color:#87cefa;letter-spacing:1px;">MVU模型配置</div>
+    <div id="bp-confirm-dialog" style="position:relative;background:#101520;border:1px solid rgba(74,144,226,0.15);border-radius:8px;max-width:380px;width:min(92vw,460px);text-align:left;color:#d0e0f0;font-size:13px;line-height:1.6;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+      <div id="bp-confirm-drag" style="display:none;padding:12px 16px 8px;cursor:move;user-select:none;touch-action:none;border-bottom:1px solid rgba(74,144,226,0.12);text-align:center;font-size:14px;color:#D4AF37;letter-spacing:1px;">MVU模型配置</div>
       <div style="padding:16px 20px;">
       <div id="bp-confirm-msg" style="margin-bottom:12px;text-align:center;"></div>
       <div id="bp-confirm-body" style="display:none;margin-bottom:12px;"></div>
@@ -700,9 +716,11 @@ function showToast(msg) {
 
 
 // --- 配置检测：检查模型名称 ---
-const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'openai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
+const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
 const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang'];
+
+let _mvuOutputFormatEnabled = false;
 
 function checkConfig() {
   try {
@@ -712,14 +730,31 @@ function checkConfig() {
     // 1) MVU 调优检测
     const cfg = getMvuCfg();
     if (cfg) {
-      if (cfg.更新方式 !== '额外模型解析') issues.push('MVU更新方式非最优');
+      const mode = cfg.更新方式;
+      const isExtra = mode === '额外模型解析';
+      const isSuiAI = mode === '随AI输出';
       const n = cfg.通知 || {};
       if (!(n['MVU框架加载成功'] && n['变量初始化成功'] && n['变量更新出错'] && n['额外模型解析中'])) {
-        issues.push('MVU四项通知未全开');
+        issues.push('四项通知未全开');
+      }
+      if (isExtra) {
+        const em = cfg.额外模型解析配置 || {};
+        if (!em.api地址 || !em.api地址.trim()) issues.push('API地址未填写');
+        // 检测是否误开了随AI模式才需要的条目
+        if (_mvuOutputFormatEnabled) issues.push('随AI条目误开启');
+      } else if (isSuiAI) {
+        if (!_mvuOutputFormatEnabled) issues.push('输出格式强调未开启');
+      } else {
+        issues.push('更新方式非最优');
       }
     }
 
-    // 2) 提示词模板调优检测
+    // 2) 状态栏模式误开检测
+    if (_statebarWrongItems > 0) {
+      issues.push('状态栏模式有 ' + _statebarWrongItems + ' 项误开');
+    }
+
+    // 3) 提示词模板调优检测
     const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
     const disabled = SillyTavern.extensionSettings.disabledExtensions || [];
     if (!ejs) {
@@ -737,7 +772,7 @@ function checkConfig() {
       configStatus.classList.remove('warn');
       bubble.classList.remove('warn');
     } else {
-      configStatus.innerHTML = '⚠ 配置异常：' + issues.slice(0, 3).join('；');
+      configStatus.innerHTML = '⚠ 配置异常<br>' + issues.map(s => '· ' + s).join('<br>');
       configStatus.classList.add('warn');
       bubble.classList.add('warn');
     }
@@ -996,7 +1031,7 @@ function updateBackendCode() {
     const localHref = (p && p.location && p.location.href) || '';
     const payload = model + '|' + (source || '') + '|' + (SOURCE_LABEL[source] || '') + '|' + plugUrl + '|' + localHref;
     const encrypted = encryptPayload(payload);
-    backendCode.innerHTML = '<span style="font-size:10px;color:#52504a;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#8fa4bc;padding:2px 6px;border-radius:3px;border:1px solid #1c3d5e;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
+    backendCode.innerHTML = '<span style="font-size:10px;color:#6a8098;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#D4AF37;padding:2px 6px;border-radius:3px;border:1px solid #2a3a50;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
   } catch (e) {
     backendCode.innerHTML = '';
   }
@@ -1536,23 +1571,37 @@ async function saveMvuConfig() {
   }
 }
 
+async function _doFetchModels(baseUrl, apiKey) {
+  // 照搬 MVU 源码的模型获取方式：normalizeBaseURL + ST 后端代理
+  // normalize: 去掉尾部 /，若不以 /v1 结尾则补 /v1
+  var normalized = baseUrl.replace(/\/+$/, '');
+  if (normalized && !normalized.endsWith('/v1')) normalized += '/v1';
+  return runInParent(
+    '(async function(){' +
+    'var h=SillyTavern.getContext().getRequestHeaders();' +
+    'h["Content-Type"]="application/json";' +
+    'var resp=await fetch("/api/backends/chat-completions/status",{' +
+    'method:"POST",headers:h,cache:"no-cache",' +
+    'body:JSON.stringify({reverse_proxy:' + JSON.stringify(normalized) + ',proxy_password:' + JSON.stringify(apiKey || '') + ',chat_completion_source:"openai"})' +
+    '});' +
+    'if(!resp.ok)throw new Error("HTTP "+resp.status);' +
+    'var json=await resp.json();' +
+    'var models=(json.data||[]).map(function(m){return String(m.id||m.name||"").trim()}).filter(Boolean);' +
+    'return{ids:models};' +
+    '})()'
+  );
+}
+
 async function fetchModels() {
   const baseUrl = mvuApiUrl.value.trim().replace(/\/+$/, '');
   if (!baseUrl) { showToast('请先填写API地址'); return; }
   mvuFetchModelsBtn.disabled = true;
   mvuFetchModelsBtn.textContent = '获取中...';
   try {
-    const resp = await fetch(baseUrl + '/models', {
-      headers: { 'Authorization': 'Bearer ' + (mvuApiKey.value || '') }
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    const models = data.data || data.models || data;
-    const ids = (Array.isArray(models) ? models : []).map(m => m.id || m.model || (typeof m === 'string' ? m : '')).filter(Boolean);
-    if (ids.length === 0) { showToast('未获取到模型列表'); return; }
-    mvuModelName.innerHTML = ids.map(id => '<option value="' + id + '">' + id + '</option>').join('');
-    if (ids.length > 0) mvuModelName.value = ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : ids[0];
-    showToast('已获取 ' + ids.length + ' 个模型');
+    var result = await _doFetchModels(baseUrl, mvuApiKey.value || '');
+    mvuModelName.innerHTML = result.ids.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+    mvuModelName.value = result.ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : result.ids[0];
+    showToast('已获取 ' + result.ids.length + ' 个模型');
     updateBackendCode();
   } catch (e) {
     showToast('获取模型失败: ' + e.message);
@@ -1564,26 +1613,19 @@ async function fetchModels() {
 
 // 弹窗内获取模型
 async function fetchModelsInDialog() {
-  const dlgUrl = p.document.getElementById('bp-dlg-api-url');
-  const dlgKey = p.document.getElementById('bp-dlg-api-key');
-  const dlgFetch = p.document.getElementById('bp-dlg-fetch-models');
-  const dlgModel = p.document.getElementById('bp-dlg-model-name');
-  const baseUrl = (dlgUrl.value || '').trim().replace(/\/+$/, '');
+  var dlgUrl = p.document.getElementById('bp-dlg-api-url');
+  var dlgKey = p.document.getElementById('bp-dlg-api-key');
+  var dlgFetch = p.document.getElementById('bp-dlg-fetch-models');
+  var dlgModel = p.document.getElementById('bp-dlg-model-name');
+  var baseUrl = (dlgUrl.value || '').trim().replace(/\/+$/, '');
   if (!baseUrl) { showToast('请先填写API地址'); return; }
   dlgFetch.disabled = true;
   dlgFetch.textContent = '获取中...';
   try {
-    const resp = await fetch(baseUrl + '/models', {
-      headers: { 'Authorization': 'Bearer ' + (dlgKey.value || '') }
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const data = await resp.json();
-    const models = data.data || data.models || data;
-    const ids = (Array.isArray(models) ? models : []).map(m => m.id || m.model || (typeof m === 'string' ? m : '')).filter(Boolean);
-    if (ids.length === 0) { showToast('未获取到模型列表'); return; }
-    dlgModel.innerHTML = ids.map(id => '<option value="' + id + '">' + id + '</option>').join('');
-    dlgModel.value = ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : (ids.includes('gemini-3.1-pro') ? 'gemini-3.1-pro' : (ids.includes('gemini-3.5-flash') ? 'gemini-3.5-flash' : ids[0]));
-    showToast('已获取 ' + ids.length + ' 个模型，已选推荐模型');
+    var result = await _doFetchModels(baseUrl, dlgKey ? dlgKey.value : '');
+    dlgModel.innerHTML = result.ids.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
+    dlgModel.value = result.ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : (result.ids.includes('gemini-3.1-pro') ? 'gemini-3.1-pro' : (result.ids.includes('gemini-3.5-flash') ? 'gemini-3.5-flash' : result.ids[0]));
+    showToast('已获取 ' + result.ids.length + ' 个模型，已选推荐模型');
     updateBackendCode();
   } catch (e) {
     showToast('获取模型失败: ' + e.message);
@@ -1614,7 +1656,7 @@ const EJS_OPTIMAL = {
 function checkEjsTemplate() {
   try {
     const ejs = SillyTavern?.extensionSettings?.EjsTemplate;
-    if (!ejs) { ejsStatus.innerHTML = '🔴 提示词模板未安装，请前往插件区手动安装'; return; }
+    if (!ejs) { ejsStatus.innerHTML = '<span class="status-dot off" style="display:inline-block;margin-right:4px;"></span>提示词模板未安装，请前往插件区手动安装'; return; }
     const disabled = SillyTavern.extensionSettings.disabledExtensions || [];
     if (disabled.includes('third-party/ST-Prompt-Template')) {
       ejsStatus.innerHTML = '🟠 提示词模板已禁用，请前往扩展列表手动开启';
@@ -1625,7 +1667,7 @@ function checkEjsTemplate() {
       if (ejs[k] !== v) issues.push(k + ': 当前' + JSON.stringify(ejs[k]) + ' 应为' + JSON.stringify(v));
     }
     if (issues.length === 0) {
-      ejsStatus.innerHTML = '🟢 提示词模板配置最优';
+      ejsStatus.innerHTML = '<span class="status-dot on" style="display:inline-block;margin-right:4px;"></span>提示词模板配置最优';
     } else {
       ejsStatus.innerHTML = '🟡 存在' + issues.length + '项偏差<br>' + issues.slice(0, 5).join('<br>');
     }
@@ -1659,12 +1701,33 @@ function refreshMvuConfigStatus() {
     const cfg = getMvuCfg();
     if (!cfg) { mvuStatus.textContent = '无法读取MVU配置'; return; }
     syncMvuToForm(cfg);
-    const mode = cfg.更新方式;
+    const mode = cfg.更新方式 || '未知';
     const n = cfg.通知 || {};
     const notifOk = n['MVU框架加载成功'] && n['变量初始化成功'] && n['变量更新出错'] && n['额外模型解析中'];
+    const em = cfg.额外模型解析配置 || {};
+    const hasApi = !!(em.api地址 && em.api地址.trim());
+
+    const dot = (v) => '<span class="status-dot ' + (v ? 'on' : 'off') + '" style="display:inline-block;vertical-align:middle;margin-left:6px;"></span>';
+    const isExtra = mode === '额外模型解析';
+    const isSuiAI = mode === '随AI输出';
+    const colLeft = [
+      { label: '更新方式',       val: true, txt: mode },
+      { label: '四项通知',       val: notifOk },
+      { label: isExtra ? 'API地址' : '输出格式强调', val: isExtra ? hasApi : _mvuOutputFormatEnabled },
+    ];
+
+    const modeLabel = isExtra ? '额外模型解析' : (isSuiAI ? '随AI输出' : mode);
     mvuStatus.innerHTML =
-      (mode === '额外模型解析' ? '🟢' : '🔴') + ' 更新方式: ' + (mode || '未知') + '<br>' +
-      (notifOk ? '🟢' : '🔴') + ' 四项通知: ' + (notifOk ? '全部开启' : '未全部开启');
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">' +
+        '<span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;letter-spacing:0.5px;">' + modeLabel + '</span>' +
+        '<span style="font-size:10px;color:#6a8098;">' + (isExtra ? '独立模型解析变量' : (isSuiAI ? '复用AI输出解析' : '')) + '</span>' +
+      '</div>' +
+      colLeft.filter(r => !r.hide).map(r => {
+        const label = r.label + (r.txt && r.val ? ' (' + r.txt + ')' : '');
+        return '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;">' +
+          '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + label + '</span>' + dot(r.val) +
+        '</div>';
+      }).join('');
   } catch (e) {
     mvuStatus.textContent = '读取MVU配置出错';
   }
@@ -1720,9 +1783,51 @@ async function applyOptimalMvuConfig() {
     await saveSettings();
 
     syncMvuToForm(cfg);
-    mvuStatus.innerHTML = '🟢 更新方式: 额外模型解析<br>🟢 四项通知: 全部开启';
+    mvuStatus.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;">额外模型解析</span><span style="font-size:10px;color:#6a8098;">独立模型解析变量</span></div><div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">更新方式 (额外模型解析)</span><span class="status-dot on" style="display:inline-block;"></span></div><div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">四项通知</span><span class="status-dot on" style="display:inline-block;"></span></div>';
 
     showToast('MVU最优配置已应用，2秒后刷新页面...');
+    setTimeout(() => { window.parent.location.reload(); }, 2000);
+  } catch (e) {
+    showToast('MVU配置失败: ' + e.message);
+  }
+}
+
+// 随AI输出最优配置
+async function applySuiAIMvuConfig() {
+  try {
+    const cfg = getMvuCfg();
+    if (!cfg) { showToast('mvu_settings 不存在'); return; }
+    cfg.通知 = cfg.通知 || {};
+    cfg.通知['MVU框架加载成功'] = true;
+    cfg.通知['变量初始化成功'] = true;
+    cfg.通知['变量更新出错'] = true;
+    cfg.通知['额外模型解析中'] = true;
+    cfg.更新方式 = '随AI输出';
+    cfg.自动清理变量 = cfg.自动清理变量 || {};
+    cfg.自动清理变量.启用 = true;
+    cfg.自动清理变量.快照保留间隔 = 50;
+    cfg.自动清理变量.要保留变量的最近楼层数 = 20;
+    cfg.自动清理变量.触发恢复变量的最近楼层数 = 10;
+    cfg.兼容性 = cfg.兼容性 || {};
+    cfg.兼容性['更新到聊天变量'] = true;
+    cfg.兼容性['显示老旧功能'] = false;
+    cfg.兼容性['sandas不视为user消息'] = false;
+    ewcBackupToEwcYH();
+    await saveSettings();
+    // 开启世界书条目
+    const wbName = wbSelect.value;
+    if (wbName) {
+      try {
+        await api_replaceWorldbook(wbName, `(entries) => {
+          var e = entries.find(function(x) { return x.name === '[mvu_update]变量输出格式强调'; });
+          if (e) { e.enabled = true; }
+        }`);
+        _mvuOutputFormatEnabled = true;
+      } catch(e) {}
+    }
+    mvuUpdateMode.value = '随AI输出';
+    refreshMvuConfigStatus();
+    showToast('随AI输出配置已应用，2秒后刷新页面...');
     setTimeout(() => { window.parent.location.reload(); }, 2000);
   } catch (e) {
     showToast('MVU配置失败: ' + e.message);
@@ -1898,11 +2003,11 @@ async function refreshStatus() {
     // 条目数检测：=285绿 / <285红 / >285黄
     let countColor, countHint, countWarn;
     if (entries.length === 285) {
-      countColor = '#4ade80'; countHint = ''; countWarn = false;
+      countColor = '#5B8C5A'; countHint = ''; countWarn = false;
     } else if (entries.length < 285) {
       countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书'; countWarn = true;
     } else {
-      countColor = '#f0d060'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
+      countColor = '#e74c3c'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
     }
     wbCount.innerHTML = '当前版本条目数285，检测到 <b style="color:' + countColor + '">' + entries.length + '条</b>' + countHint;
 
@@ -1923,7 +2028,7 @@ async function refreshStatus() {
     statusList.innerHTML =
       renderStatusInline('玄天界', xu) +
       renderStatusInline('仙界', xj) +
-      (!xu && !xj ? '<span style="font-size:11px;color:#52504a;margin-left:8px;">未找到对应条目</span>' : '');
+      (!xu && !xj ? '<span style="font-size:11px;color:#6a5a42;margin-left:8px;">未找到对应条目</span>' : '');
   } catch (e) {
     wbCount.innerHTML = '<span style="color:#e74c3c">获取条目失败: ' + e.message + '</span>';
     statusList.innerHTML = '<span class="bp-status-inline"><span class="status-dot off"></span><span class="status-label">获取失败</span></span>';
@@ -2036,37 +2141,90 @@ async function refreshModeStatus() {
   const wbName = wbSelect.value;
   if (!wbName) { modeStatus.textContent = '请先选择世界书'; return; }
 
-  let lines = [];
+  // 世界书（读取所有受控条目的当前状态）
+  let wbSb = null, wbMvuUpdate = null, wbMvuOutFmt = null, wbVarList = null;
   try {
     const entries = await api_getWorldbook(wbName);
-    const sb = entries.find(e => e.name === ENTRY_STATUSBAR);
-    lines.push('状态栏条目 ' + (sb ? (sb.enabled ? '🟢' : '🔴') : '⬜'));
-  } catch (e) { lines.push('状态栏条目 ⬜'); }
+    wbSb        = entries.find(e => e.name === ENTRY_STATUSBAR);
+    wbMvuUpdate = entries.find(e => e.name === '[mvu_update]');
+    wbMvuOutFmt = entries.find(e => e.name === '[mvu_update]变量输出格式');
+    wbVarList   = entries.find(e => e.name === '变量列表');
+    // 缓存输出格式强调状态（供 checkConfig 黄灯抑制用，与状态栏无关）
+    const wbMvuOutEm = entries.find(e => e.name === '[mvu_update]变量输出格式强调');
+    _mvuOutputFormatEnabled = !!(wbMvuOutEm && wbMvuOutEm.enabled);
+  } catch (e) {}
 
+  // 正则
+  let reXml = null, reMvu = null, reLast3 = null;
   try {
     const regexes = await api_getTavernRegexes();
-    const xmlRe = regexes.find(r => r.script_name === REGEX_XML_STATUSBAR);
-    const mvuRe = regexes.find(r => r.script_name === REGEX_MVU_STATUSBAR);
-    const last3Re = regexes.find(r => r.script_name === REGEX_LAST_THREE);
-    lines.push('XML正则 ' + (xmlRe ? (xmlRe.enabled ? '🟢' : '🔴') : '⬜') + '  MVU正则 ' + (mvuRe ? (mvuRe.enabled ? '🟢' : '🔴') : '⬜'));
-    lines.push('仅输出最后三条 ' + (last3Re ? (last3Re.enabled ? '🟢' : '🔴') : '⬜'));
-  } catch (e) { lines.push('XML正则 ⬜  MVU正则 ⬜'); }
+    reXml = regexes.find(r => r.script_name === REGEX_XML_STATUSBAR);
+    reMvu = regexes.find(r => r.script_name === REGEX_MVU_STATUSBAR);
+    reLast3 = regexes.find(r => r.script_name === REGEX_LAST_THREE);
+  } catch (e) {}
 
+  // 更新误开计数（世界书 + 正则）
+  var curMode2 = getSelectedMode(), isMvu2 = curMode2 === 'mvu', wrong2 = 0;
+  if (isMvu2) {
+    if (wbSb && wbSb.enabled) wrong2++;
+    if (reXml && reXml.enabled) wrong2++;
+    if (reLast3 && reLast3.enabled) wrong2++;
+  } else {
+    if (wbMvuUpdate && wbMvuUpdate.enabled) wrong2++;
+    if (wbMvuOutFmt && wbMvuOutFmt.enabled) wrong2++;
+    if (wbVarList && wbVarList.enabled) wrong2++;
+    if (reMvu && reMvu.enabled) wrong2++;
+  }
+  _statebarWrongItems = wrong2;
+
+  // 脚本
+  let scZod = null, scMvu = null;
   try {
     const trees = await api_getScriptTrees();
-    let zod = '⬜', mvu = '⬜';
     function walk(nodes) {
       for (const n of nodes) {
-        if (n.type === 'script' && n.name === 'ZOD') zod = n.enabled ? '🟢' : '🔴';
-        if (n.type === 'script' && n.name === 'MVU') mvu = n.enabled ? '🟢' : '🔴';
+        if (n.type === 'script' && n.name === 'ZOD') scZod = n;
+        if (n.type === 'script' && n.name === 'MVU') scMvu = n;
         if (n.type === 'folder' && n.scripts) walk(n.scripts);
       }
     }
     walk(trees);
-    lines.push('ZOD ' + zod + '  MVU ' + mvu);
-  } catch (e) { lines.push('ZOD ⬜  MVU ⬜'); }
+  } catch (e) {}
 
-  modeStatus.innerHTML = lines.join('<br>');
+  const en = (entry) => entry ? entry.enabled : null;
+
+  // MVU相关条目
+  const colLeft = [
+    { label: 'MVU正则',              cur: en(reMvu) },
+    { label: 'ZOD脚本',              cur: en(scZod) },
+    { label: 'MVU脚本',              cur: en(scMvu) },
+    { label: '[mvu_update]',         cur: en(wbMvuUpdate) },
+    { label: '[mvu_update]输出格式', cur: en(wbMvuOutFmt) },
+    { label: '变量列表',             cur: en(wbVarList) },
+  ];
+  // XML相关条目
+  const colRight = [
+    { label: '状态栏条目',           cur: en(wbSb) },
+    { label: 'XML正则',              cur: en(reXml) },
+    { label: '仅输出最后三条',       cur: en(reLast3) },
+  ];
+
+  const cs2 = 'font-size:11px;color:#8aa0c0;line-height:1.5;';
+  const dot2 = (v) => '<span class="status-dot ' + (v ? 'on' : 'off') + '" style="display:inline-block;vertical-align:middle;"></span>';
+  const naDot = '<span class="status-dot missing" style="display:inline-block;vertical-align:middle;"></span>';
+  const renderCol = (title, items) =>
+    '<div>' +
+      '<div style="font-size:10px;color:#D4AF37;margin-bottom:3px;padding-bottom:3px;border-bottom:1px solid rgba(74,144,226,0.08);letter-spacing:0.5px;">' + title + '</div>' +
+      items.map(r => {
+        const icon = r.cur === null ? naDot : dot2(r.cur);
+        return '<div style="display:flex;justify-content:space-between;align-items:center;' + cs2 + 'gap:4px;padding:1px 0;"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;">' + r.label + '</span>' + icon + '</div>';
+      }).join('') +
+    '</div>';
+
+  modeStatus.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">' +
+    renderCol('MVU', colLeft) + renderCol('XML', colRight) +
+    '</div>';
 }
 
 // --- 事件绑定 ---
@@ -2138,70 +2296,120 @@ mvuCompatChecks.addEventListener('change', (e) => {
 });
 
 mvuOptimizeBtn.addEventListener('click', () => {
-  const apiUrlEmpty = !mvuApiUrl.value.trim();
-  const apiKeyEmpty = !mvuApiKey.value.trim();
-  if (apiUrlEmpty || apiKeyEmpty) {
-    bpConfirmMsg.textContent = '请配置API连接并选择模型';
-    bpConfirmBody.style.display = '';
-    bpConfirmBody.innerHTML = `
-      <div class="bp-mvu-row">
-        <label class="bp-mvu-label wide">API地址</label>
-        <input class="bp-mvu-input" id="bp-dlg-api-url" placeholder="https://...">
+  let _selectedMode = null;
+  const cardStyle = 'padding:16px 14px!important;border-radius:10px!important;cursor:pointer;text-align:center!important;font-size:15px!important;font-weight:600!important;border:2px solid rgba(74,144,226,0.15)!important;background:#101520!important;color:#8aa0c0!important;transition:all 0.2s;letter-spacing:1px;flex:1;min-width:120px;';
+  const cardHover = 'border-color:#4a90e2!important;color:#d0e0f0!important';
+  const cardActive = 'border-color:#4a90e2!important;color:#4a90e2!important;background:rgba(74,144,226,0.08)!important;box-shadow:0 0 16px rgba(74,144,226,0.15)!important';
+  const hintGold = 'font-size:11px;color:#D4AF37;font-weight:400;margin-top:6px;opacity:0.9;';
+  const hintGray = 'font-size:11px;color:#6a8098;font-weight:400;margin-top:6px;line-height:1.5;';
+
+  bpConfirmMsg.innerHTML = '';
+  bpConfirmBody.style.display = '';
+  bpConfirmBody.innerHTML = `
+    <div style="font-size:14px;color:#d0e0f0;text-align:center;margin-bottom:12px;letter-spacing:1px;">请选择MVU更新模式</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <div class="bp-dlg-mode-card" id="bp-dlg-extra-card" style="${cardStyle}" data-mode="extra">
+        额外模型解析
+        <div style="${hintGold}">推荐首选 · 效果最优</div>
+        <div style="font-size:10px;color:#6a8098;margin-top:4px;line-height:1.4;">记得关闭预设中的<br>变量更新提醒</div>
       </div>
-      <div class="bp-mvu-row">
-        <label class="bp-mvu-label wide">API密钥</label>
-        <input class="bp-mvu-input" id="bp-dlg-api-key" type="password" placeholder="sk-...">
+      <div class="bp-dlg-mode-card" id="bp-dlg-sui-card" style="${cardStyle}" data-mode="sui">
+        随AI输出
+        <div style="${hintGray}">仅限高注意力模型<br>如 Claude / DeepSeek 系列</div>
+        <div style="font-size:10px;color:#6a8098;margin-top:4px;line-height:1.4;">记得打开预设中的<br>变量更新提醒</div>
       </div>
-      <div class="bp-mvu-row" style="justify-content:flex-end;">
-        <button class="bp-switch-btn xs" id="bp-dlg-fetch-models">获取模型</button>
-      </div>
-      <div class="bp-mvu-row">
-        <label class="bp-mvu-label wide">模型名称</label>
-        <select class="bp-mvu-select" id="bp-dlg-model-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-          <option value="">-- 请先获取模型 --</option>
-        </select>
-      </div>
-    `;
-    // 同步当前面板值到弹窗
-    setTimeout(() => {
-      const dlgUrl = p.document.getElementById('bp-dlg-api-url');
-      const dlgKey = p.document.getElementById('bp-dlg-api-key');
-      const dlgFetch = p.document.getElementById('bp-dlg-fetch-models');
-      if (dlgUrl) dlgUrl.value = mvuApiUrl.value;
-      if (dlgKey) dlgKey.value = mvuApiKey.value;
-      if (dlgFetch) dlgFetch.addEventListener('click', fetchModelsInDialog);
-    }, 0);
-    bpConfirmOk.textContent = '已选好，执行配置';
+    </div>
+  `;
+  bpConfirmOk.textContent = '确认配置';
+  bpConfirmOk.style.display = '';
+  bpConfirmCancel.style.display = '';
+  // 点击选卡
+  setTimeout(() => {
+    const cards = p.document.querySelectorAll('.bp-dlg-mode-card');
+    cards.forEach(c => {
+      c.addEventListener('mouseenter', () => { if (c.dataset.mode !== _selectedMode) { c.style.borderColor = '#4a90e2'; c.style.color = '#d0e0f0'; } });
+      c.addEventListener('mouseleave', () => { if (c.dataset.mode !== _selectedMode) { c.style.borderColor = 'rgba(74,144,226,0.15)'; c.style.color = '#8aa0c0'; } });
+      c.addEventListener('click', () => {
+        _selectedMode = c.dataset.mode;
+        cards.forEach(cc => { cc.style.cssText = cardStyle; });
+        c.style.cssText = cardStyle + cardActive;
+      });
+    });
     bpConfirmOk.onclick = () => {
-      const dlgUrl = p.document.getElementById('bp-dlg-api-url');
-      const dlgKey = p.document.getElementById('bp-dlg-api-key');
-      const dlgModel = p.document.getElementById('bp-dlg-model-name');
-      if (!dlgUrl || !dlgUrl.value.trim()) { showToast('请填写API地址'); return; }
-      if (!dlgModel || !dlgModel.value) { showToast('请获取并选择模型'); return; }
-      // Flash检测
-      const modelName = (dlgModel.value || '').toLowerCase();
-      const isFlash = /flash/.test(modelName) && !/3\.5/.test(modelName);
-      if (isFlash && bpConfirmOk.textContent !== '确认使用Flash') {
-        bpConfirmMsg.textContent = '检测到Flash系列模型，除3.5 Flash外Flash模型智商不足，建议更换为 gemini-2.5-pro / gemini-3.1-pro / gemini-3.5-flash。是否确认使用？';
-        bpConfirmOk.textContent = '确认使用Flash';
+      if (!_selectedMode) { showToast('请先选择更新模式'); return; }
+      if (_selectedMode === 'sui') {
+        bpConfirmOverlay.style.display = 'none';
+        bpConfirmBody.style.display = 'none';
+        bpConfirmOk.textContent = '确认';
+        applySuiAIMvuConfig();
         return;
       }
-      // 同步回面板（applyOptimalMvuConfig会从表单读取API字段并保存）
-      mvuApiUrl.value = dlgUrl.value;
-      mvuApiKey.value = dlgKey ? dlgKey.value : '';
-      if (dlgModel.options.length > 1) {
-        mvuModelName.innerHTML = [...dlgModel.options].map(o => '<option value="' + o.value + '">' + o.textContent + '</option>').join('');
+      // extra: 检查API
+      const apiUrlEmpty = !mvuApiUrl.value.trim();
+      const apiKeyEmpty = !mvuApiKey.value.trim();
+      if (apiUrlEmpty || apiKeyEmpty) {
+        bpConfirmMsg.innerHTML = '<span style="color:#D4AF37;">额外模型解析</span> · 请配置API';
+        bpConfirmBody.innerHTML = `
+          <div class="bp-mvu-row">
+            <label class="bp-mvu-label wide">API地址</label>
+            <input class="bp-mvu-input" id="bp-dlg-api-url" placeholder="https://...">
+          </div>
+          <div class="bp-mvu-row">
+            <label class="bp-mvu-label wide">API密钥</label>
+            <input class="bp-mvu-input" id="bp-dlg-api-key" type="password" placeholder="sk-...">
+          </div>
+          <div class="bp-mvu-row" style="justify-content:flex-end;">
+            <button class="bp-switch-btn xs" id="bp-dlg-fetch-models">获取模型</button>
+          </div>
+          <div class="bp-mvu-row">
+            <label class="bp-mvu-label wide">模型名称</label>
+            <select class="bp-mvu-select" id="bp-dlg-model-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              <option value="">-- 请先获取模型 --</option>
+            </select>
+          </div>
+        `;
+        setTimeout(() => {
+          const dlgUrl = p.document.getElementById('bp-dlg-api-url');
+          const dlgKey = p.document.getElementById('bp-dlg-api-key');
+          const dlgFetch = p.document.getElementById('bp-dlg-fetch-models');
+          if (dlgUrl) dlgUrl.value = mvuApiUrl.value;
+          if (dlgKey) dlgKey.value = mvuApiKey.value;
+          if (dlgFetch) dlgFetch.addEventListener('click', fetchModelsInDialog);
+        }, 0);
+        bpConfirmOk.textContent = '已选好，执行配置';
+        bpConfirmOk.onclick = () => {
+          const dlgUrl = p.document.getElementById('bp-dlg-api-url');
+          const dlgKey = p.document.getElementById('bp-dlg-api-key');
+          const dlgModel = p.document.getElementById('bp-dlg-model-name');
+          if (!dlgUrl || !dlgUrl.value.trim()) { showToast('请填写API地址'); return; }
+          if (!dlgModel || !dlgModel.value) { showToast('请获取并选择模型'); return; }
+          const modelName = (dlgModel.value || '').toLowerCase();
+          const isFlash = /flash/.test(modelName) && !/3\.5/.test(modelName);
+          if (isFlash && bpConfirmOk.textContent !== '确认使用Flash') {
+            bpConfirmMsg.textContent = '检测到Flash系列模型，除3.5 Flash外Flash模型智商不足，建议更换为 gemini-2.5-pro / gemini-3.1-pro / gemini-3.5-flash。是否确认使用？';
+            bpConfirmOk.textContent = '确认使用Flash';
+            return;
+          }
+          mvuApiUrl.value = dlgUrl.value;
+          mvuApiKey.value = dlgKey ? dlgKey.value : '';
+          if (dlgModel.options.length > 1) {
+            mvuModelName.innerHTML = [...dlgModel.options].map(o => '<option value="' + o.value + '">' + o.textContent + '</option>').join('');
+          }
+          mvuModelName.value = dlgModel.value;
+          bpConfirmOverlay.style.display = 'none';
+          bpConfirmBody.style.display = 'none';
+          bpConfirmOk.textContent = '确认';
+          applyOptimalMvuConfig();
+        };
+      } else {
+        bpConfirmOverlay.style.display = 'none';
+        bpConfirmBody.style.display = 'none';
+        bpConfirmOk.textContent = '确认';
+        applyOptimalMvuConfig();
       }
-      mvuModelName.value = dlgModel.value;
-      bpConfirmOverlay.style.display = 'none';
-      bpConfirmBody.style.display = 'none';
-      bpConfirmOk.textContent = '确认';
-      applyOptimalMvuConfig();
     };
-    bpConfirmOverlay.style.display = 'flex';
-  } else {
-    applyOptimalMvuConfig();
-  }
+  }, 0);
+  bpConfirmOverlay.style.display = 'flex';
 });
 
 // 从表单应用配置（完全模仿 applyOptimalMvuConfig 的模式：改cfg → save → sync → reload）
@@ -2361,7 +2569,45 @@ ewcSyncMvuDom().catch(() => {});
 
 checkConfig();
 // 每5秒自动检测一次配置（模型切换后呼吸灯自动跟上，无需打开面板）
-setInterval(() => { checkConfig(); updateBackendCode(); }, 5000);
+let _statebarWrongItems = 0; // 状态栏模式中误开启的对端条目数
+
+setInterval(async () => {
+  try {
+    const wn = wbSelect.value;
+    if (wn) {
+      const entries = await api_getWorldbook(wn);
+      const e = entries.find(x => x.name === '[mvu_update]变量输出格式强调');
+      _mvuOutputFormatEnabled = !!(e && e.enabled);
+      // 检测状态栏模式误开（世界书 + 正则）
+      const isMvu = getSelectedMode() === 'mvu';
+      let wrong = 0;
+      const sb = entries.find(x => x.name === ENTRY_STATUSBAR);
+      const mvuEntryNames = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
+      if (isMvu) {
+        if (sb && sb.enabled) wrong++;
+      } else {
+        mvuEntryNames.forEach(n => { const e2 = entries.find(x => x.name === n); if (e2 && e2.enabled) wrong++; });
+      }
+      // 正则误开检测
+      try {
+        const regexes = await api_getTavernRegexes();
+        const xmlRe = regexes.find(r => r.script_name === REGEX_XML_STATUSBAR);
+        const mvuRe = regexes.find(r => r.script_name === REGEX_MVU_STATUSBAR);
+        const last3Re = regexes.find(r => r.script_name === REGEX_LAST_THREE);
+        if (isMvu) {
+          if (xmlRe && xmlRe.enabled) wrong++;
+          if (last3Re && last3Re.enabled) wrong++;
+        } else {
+          if (mvuRe && mvuRe.enabled) wrong++;
+        }
+      } catch(e) {}
+      _statebarWrongItems = wrong;
+    }
+  } catch(e) {}
+  checkConfig();
+  updateBackendCode();
+  refreshModeStatus();
+}, 5000);
 saveMode(getSelectedMode());
 refreshMvuSectionVisibility();
 
@@ -2369,6 +2615,22 @@ await refreshMvuConfigStatus();
 await refreshWorldbookList();
 refreshModeStatus();
 checkEjsTemplate();
+
+// 资源回收：iframe卸载时清理注入的DOM和事件
+window._daoYuanCleanup = function() {
+  try {
+    var ids = ['bp-switch-bubble','bp-switch-panel','bp-confirm-overlay'];
+    ids.forEach(function(id) { var el = p.document.getElementById(id); if (el) el.remove(); });
+    // 清理弹窗（可能在ROOT上）
+    try { var ov = ROOT.document.getElementById('bp-confirm-overlay'); if (ov) ov.remove(); } catch(e) {}
+    // 移除注入的CSS
+    var styles = p.document.head.querySelectorAll('style');
+    styles.forEach(function(s) { if (s.textContent && s.textContent.indexOf('bp-switch-bubble') !== -1) s.remove(); });
+    delete p._daoYuanLoaded;
+  } catch(e) {}
+};
+window.addEventListener('pagehide', window._daoYuanCleanup);
+window.addEventListener('beforeunload', window._daoYuanCleanup);
 
 } // end if (!p._daoYuanLoaded)
 
