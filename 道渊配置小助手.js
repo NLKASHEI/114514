@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.4/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.5/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.2.4';
+const DAOYUAN_VERSION = '1.2.5';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -1781,6 +1781,17 @@ async function applyOptimalMvuConfig() {
 
     ewcBackupToEwcYH();
     await saveSettings();
+    // 关闭随AI模式专属条目
+    try {
+      const wbName = wbSelect.value;
+      if (wbName) {
+        await api_replaceWorldbook(wbName, `(entries) => {
+          var e = entries.find(function(x) { return x.name === '[mvu_update]变量输出格式强调'; });
+          if (e) { e.enabled = false; }
+        }`);
+        _mvuOutputFormatEnabled = false;
+      }
+    } catch(e) {}
 
     syncMvuToForm(cfg);
     mvuStatus.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;">额外模型解析</span><span style="font-size:10px;color:#6a8098;">独立模型解析变量</span></div><div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">更新方式 (额外模型解析)</span><span class="status-dot on" style="display:inline-block;"></span></div><div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">四项通知</span><span class="status-dot on" style="display:inline-block;"></span></div>';
