@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.6/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.7/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.2.6';
+const DAOYUAN_VERSION = '1.2.7';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -676,6 +676,18 @@ const REGEX_LAST_THREE = '仅输出最后三条状态栏';
 const SCRIPT_NAMES_TOGGLE = ['ZOD', 'MVU'];
 const MVU_AUX_ENTRIES = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
 
+// --- 界域动态人物相遇 & NPC 注入 ---
+const ENTRY_XUANTIAN_NPC = '玄天界动态人物相遇';
+const ENTRY_XIANJIE_NPC = '仙界动态人物相遇';
+const REGEX_XUANTIAN_LOW = '玄天界低阶随机NPC注入';
+const REGEX_XUANTIAN_HIGH = '玄天界高阶随机NPC注入';
+const REGEX_XUANTIAN_BEAUTY1 = '玄天界绝色榜人物注入1';
+const REGEX_XUANTIAN_BEAUTY2 = '玄天界绝色榜人物注入2';
+const REGEX_XIANJIE_LOW = '仙界低阶随机NPC注入';
+const REGEX_XIANJIE_HIGH = '仙界高阶随机NPC注入';
+const REGEX_XIANJIE_BEAUTY1 = '仙界绝色榜人物注入1';
+const REGEX_XIANJIE_BEAUTY2 = '仙界绝色榜人物注入2';
+
 function getSelectedBirthplace() {
   for (const btn of birthBtns) {
     if (btn.classList.contains('active')) return btn.dataset.birthplace;
@@ -717,8 +729,8 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
+const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud'];
 
 let _mvuOutputFormatEnabled = false;
 
@@ -2011,17 +2023,26 @@ async function refreshStatus() {
     const xu = entries.find(e => e.name === ENTRY_XUANTIAN);
     const xj = entries.find(e => e.name === ENTRY_XIANJIE);
 
-    // 条目数检测：排除DB条目后 =285绿 / <285红 / >285黄
+    // 条目数检测：排除DB条目后 =307绿 / <307红 / >307黄
     const countEntries = entries.filter(e => !e.name.includes('DB'));
     let countColor, countHint, countWarn;
-    if (countEntries.length === 285) {
+    if (countEntries.length === 307) {
       countColor = '#5B8C5A'; countHint = ''; countWarn = false;
-    } else if (countEntries.length < 285) {
+    } else if (countEntries.length < 307) {
       countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书'; countWarn = true;
     } else {
       countColor = '#e74c3c'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
     }
-    wbCount.innerHTML = '当前版本条目数285，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
+    wbCount.innerHTML = '当前版本条目数307，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
+
+    // 双向同步：以 MVU 后端 stat_data.主角.所在界 为权威来源
+    try {
+      const mvuData = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      const mvuRealm = mvuData && mvuData.stat_data && mvuData.stat_data.主角 && mvuData.stat_data.主角.所在界;
+      if (mvuRealm === '玄天界' || mvuRealm === '仙界') {
+        saveBirthplace(mvuRealm);
+      }
+    } catch(e) {}
 
     // 自动检测当前出生地：哪个条目已启用就激活对应按钮
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -2053,33 +2074,72 @@ function renderStatusInline(label, entry) {
   return '<span class="bp-status-inline"><span class="status-dot ' + cls + '"></span><span class="status-label">' + label + '</span></span>';
 }
 
-// --- 执行切换（世界书 + MVU + localStorage + UI）---
+// --- 执行切换（世界书条目 + 正则 + MVU + localStorage + UI）---
 async function doSwitch(birthplace) {
   const wbName = wbSelect.value;
   if (!wbName) { showToast('请先选择世界书'); return; }
 
   saveBirthplace(birthplace);
 
+  const isXianjie = birthplace === '仙界';
+  let errors = [];
+
+  // 1. 世界书：内容控制开关 + 动态人物相遇
   try {
-    const isXianjie = birthplace === '仙界';
-    const modifierFn = `(entries) => {` +
+    const wbMod = `(entries) => {` +
       `  var xu = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN)}; });` +
       `  var xj = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE)}; });` +
+      `  var xuNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN_NPC)}; });` +
+      `  var xjNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE_NPC)}; });` +
       `  if (xu) { xu.enabled = ${!isXianjie}; }` +
       `  if (xj) { xj.enabled = ${isXianjie}; }` +
+      `  if (xuNpc) { xuNpc.enabled = ${!isXianjie}; }` +
+      `  if (xjNpc) { xjNpc.enabled = ${isXianjie}; }` +
       `}`;
-
-    await api_replaceWorldbook(wbName, modifierFn);
-    try {
-      await api_setMvuBirthplace(birthplace);
-    } catch (e) {
-      showToast('MVU写入失败: ' + e.message);
-    }
-    showToast('已切换为「' + birthplace + '」');
-    await refreshStatus();
+    await api_replaceWorldbook(wbName, wbMod);
   } catch (e) {
-    showToast('切换失败: ' + e.message);
+    errors.push('世界书: ' + e.message);
   }
+
+  // 2. 正则：界域 NPC 注入 & 绝色榜（互斥）
+  try {
+    const reMod = `(regexes) => {` +
+      `  var xuLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_LOW)}; });` +
+      `  var xuHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_HIGH)}; });` +
+      `  var xuBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY1)}; });` +
+      `  var xuBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY2)}; });` +
+      `  var xjLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_LOW)}; });` +
+      `  var xjHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_HIGH)}; });` +
+      `  var xjBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY1)}; });` +
+      `  var xjBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY2)}; });` +
+      `  if (xuLow)    { xuLow.enabled    = ${!isXianjie}; }` +
+      `  if (xuHigh)   { xuHigh.enabled   = ${!isXianjie}; }` +
+      `  if (xuBeauty1) { xuBeauty1.enabled = ${!isXianjie}; }` +
+      `  if (xuBeauty2) { xuBeauty2.enabled = ${!isXianjie}; }` +
+      `  if (xjLow)    { xjLow.enabled    = ${isXianjie}; }` +
+      `  if (xjHigh)   { xjHigh.enabled   = ${isXianjie}; }` +
+      `  if (xjBeauty1) { xjBeauty1.enabled = ${isXianjie}; }` +
+      `  if (xjBeauty2) { xjBeauty2.enabled = ${isXianjie}; }` +
+      `  return regexes;` +
+      `}`;
+    await api_updateTavernRegexes(reMod);
+  } catch (e) {
+    errors.push('正则: ' + e.message);
+  }
+
+  // 3. MVU 后端所在界
+  try {
+    await api_setMvuBirthplace(birthplace);
+  } catch (e) {
+    errors.push('MVU: ' + e.message);
+  }
+
+  if (errors.length > 0) {
+    showToast('部分操作失败: ' + errors.join('; '));
+  } else {
+    showToast('已切换为「' + birthplace + '」');
+  }
+  await refreshStatus();
 }
 
 // --- 执行状态栏模式切换（世界书条目 + 正则 + 角色脚本）---
