@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.7/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.2.8/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.2.7';
+const DAOYUAN_VERSION = '1.2.8';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -343,6 +343,23 @@ CSS.textContent = `
     .bp-switch-panel select { padding: 7px 28px 7px 10px; font-size: 12px; }
     .bp-config-status { padding: 8px 10px !important; font-size: 12px; margin-bottom: 8px; }
   }
+  /* ── 滚动提示：绝对定位在面板右下角，不占内容空间 ── */
+  .bp-scroll-hint {
+    position: absolute; bottom: 0; right: 6px; z-index: 3;
+    display: flex; align-items: center; justify-content: center;
+    width: 20px; height: 24px; margin: 0; padding: 0;
+    pointer-events: none; user-select: none; -webkit-user-select: none;
+    transition: opacity 0.35s ease;
+  }
+  .bp-scroll-arrow {
+    display: inline-block;    font-size: 14px; line-height: 1;
+    color: rgba(255,255,255,0.5);
+    animation: bp-scroll-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes bp-scroll-pulse {
+    0%, 100% { opacity: 0.15; transform: translateY(0); }
+    50% { opacity: 0.8; transform: translateY(4px); }
+  }
 `;
 p.document.head.appendChild(CSS);
 
@@ -575,6 +592,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
         <div style="font-size:12px;color:#3a5a7a;">v${DAOYUAN_VERSION}</div>
       </div>
     </div>
+    <div class="bp-scroll-hint" id="bp-scroll-hint"><span class="bp-scroll-arrow">▼</span></div>
   </div>
 `);
 
@@ -641,6 +659,23 @@ const mvuManualPanel = p.document.getElementById('bp-mvu-manual-panel');
 const mvuAdvToggle = p.document.getElementById('bp-mvu-adv-toggle');
 const mvuAdvArrow = p.document.getElementById('bp-mvu-adv-arrow');
 const mvuAdvPanel = p.document.getElementById('bp-mvu-adv-panel');
+
+// ── 滚动提示：提醒用户下方还有内容可翻 ──
+const scrollBody = panel.querySelector('.bp-switch-body');
+const scrollHint = p.document.getElementById('bp-scroll-hint');
+if (scrollBody && scrollHint) {
+  const updateScrollHint = () => {
+    const nearBottom = scrollBody.scrollHeight - scrollBody.scrollTop - scrollBody.clientHeight < 30;
+    scrollHint.style.opacity = nearBottom ? '0' : '';
+    scrollHint.style.pointerEvents = nearBottom ? 'none' : '';
+    const needsScroll = scrollBody.scrollHeight > scrollBody.clientHeight + 5;
+    scrollHint.style.display = needsScroll ? '' : 'none';
+  };
+  scrollBody.addEventListener('scroll', updateScrollHint);
+  // 初始检测 + 面板显示时重新检测
+  updateScrollHint();
+  new MutationObserver(() => { updateScrollHint(); }).observe(panel, { attributes: true, attributeFilter: ['style'] });
+}
 const mvuMaxTokens = p.document.getElementById('bp-mvu-max-tokens');
 const mvuTemperature = p.document.getElementById('bp-mvu-temperature');
 const mvuFreqPenalty = p.document.getElementById('bp-mvu-freq-penalty');
@@ -730,7 +765,7 @@ function showToast(msg) {
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
 const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud'];
+const CONFIG_URL_BLACKLIST = ['gemai','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win'];
 
 let _mvuOutputFormatEnabled = false;
 
