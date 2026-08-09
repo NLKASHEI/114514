@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.0/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.1/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.0';
+const DAOYUAN_VERSION = '1.3.1';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -1762,46 +1762,61 @@ async function mvuLiveApply(cfg) {
         window.SillyTavern.saveSettingsDebounced();
       }
       // 找到 MVU 面板挂载点 → Vue app → Pinia store
-      var app = null;
-      var rootEls = document.querySelectorAll('#extensions_settings2 [data-v-app], #extensions_settings2 [script_id], #extensions_settings2 [__vue_app__]');
-      for (var ri = 0; ri < rootEls.length; ri++) {
-        if (rootEls[ri].__vue_app__) { app = rootEls[ri].__vue_app__; break; }
-      }
-      if (!app) {
-        // 兜底：遍历常见挂载区找 Vue 根
-        var cands = document.querySelectorAll('#extensions_settings2 div, #extensions_settings2 section');
-        for (var ci = 0; ci < cands.length; ci++) {
-          if (cands[ci].__vue_app__) { app = cands[ci].__vue_app__; break; }
+      // 策略1：遍历全文档所有 Vue 挂载点（[data-v-app] / [script_id] / [__vue_app__]），
+      // 逐个检查其 pinia 里是否含「MVU变量框架」store。
+      // 不再只查 #extensions_settings2，也不取第一个带 __vue_app__ 的元素——
+      // 其它扩展（如小白X/世界助手等）的 Vue 应用可能先挂载，其 pinia 里没有 MVU 的 store。
+      var store = null;
+      var appRoots = document.querySelectorAll('[data-v-app], [script_id], [__vue_app__]');
+      for (var ai = 0; ai < appRoots.length; ai++) {
+        var candApp = appRoots[ai].__vue_app__;
+        if (!candApp) continue;
+        var candPinia = candApp.config && candApp.config.globalProperties && candApp.config.globalProperties.$pinia;
+        var candStore = candPinia && candPinia._s && candPinia._s.get('MVU变量框架');
+        if (candStore) { store = candStore; break; }
+        if (candApp._instance && candApp._instance.setupState && candApp._instance.setupState.store && candApp._instance.setupState.store.$id === 'MVU变量框架') {
+          store = candApp._instance.setupState.store; break;
         }
       }
-      var pinia = app && app.config && app.config.globalProperties && app.config.globalProperties.$pinia;
-      var store = pinia && pinia._s && pinia._s.get('MVU变量框架');
+      // 策略2：MVU 面板挂在 [script_id] div 上，向下遍历其组件树找 setupState.store
       if (!store) {
-        // 兜底：遍历 MVU 面板 Vue 组件实例链，从 setupState 找 store
-        var mvuRoot = document.querySelector('#extensions_settings2 [script_id]');
-        if (mvuRoot) {
-          var walk = mvuRoot;
-          var depth = 0;
-          while (walk && depth < 30) {
-            var inst = walk.__vueParentComponent;
-            if (inst && inst.setupState && inst.setupState.store && inst.setupState.store.$id === 'MVU变量框架') {
-              store = inst.setupState.store; break;
+        var roots = document.querySelectorAll('[script_id]');
+        for (var ri = 0; ri < roots.length && !store; ri++) {
+          var queue = [roots[ri]];
+          var guard = 0;
+          while (queue.length && guard < 2000) {
+            guard++;
+            var el = queue.pop();
+            if (!el || !el.children) continue;
+            var inst = el.__vueParentComponent;
+            if (inst && inst.setupState && inst.setupState.store) {
+              var s = inst.setupState.store;
+              if (s.$id === 'MVU变量框架') { store = s; break; }
             }
-            if (inst && inst.setupState && inst.setupState.store) { store = inst.setupState.store; break; }
-            walk = walk.parentNode;
-            depth++;
+            var kids = el.children;
+            for (var k = kids.length - 1; k >= 0; k--) queue.push(kids[k]);
           }
         }
       }
-      if (!store) {
-        // 兜底：面板未挂载时尝试直接读取父页面 store 引用
-        if (window.__mvuStoreRef && window.__mvuStoreRef.value) store = window.__mvuStoreRef.value;
-      }
+      // 策略3：MVU 若显式暴露了 store 引用则直接取用
+      if (!store && window.__mvuStoreRef && window.__mvuStoreRef.value) store = window.__mvuStoreRef.value;
       if (store) {
         try {
-          if (typeof store._reload_settings === 'function') store._reload_settings();
-          else if (store.settings && window.SillyTavern && window.SillyTavern.extensionSettings) store.settings = window.SillyTavern.extensionSettings.mvu_settings;
-        } catch (e) {}
+          if (typeof store._reload_settings === 'function') {
+            store._reload_settings();
+            // 校验 reload 是否真的生效（zod 解析异常会得到空 settings，此时必须回退刷新）
+            if (store.settings && cfg) {
+              var st = store.settings;
+              var emCfg = (cfg.额外模型解析配置 || {});
+              var okCheck = (st.更新方式 === cfg.更新方式) || !!(st.额外模型解析配置 && st.额外模型解析配置.模型名称 === emCfg.模型名称);
+              if (!okCheck) return { ok: false };
+            }
+          } else if (store.settings && window.SillyTavern && window.SillyTavern.extensionSettings) {
+            store.settings = window.SillyTavern.extensionSettings.mvu_settings;
+          }
+        } catch (e) {
+          return { ok: false };
+        }
         return { ok: true };
       }
       return { ok: false };
