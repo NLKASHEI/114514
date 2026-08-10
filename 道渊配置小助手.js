@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.1/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.2/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.1';
+const DAOYUAN_VERSION = '1.3.2';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -245,7 +245,7 @@ CSS.textContent = `
     }
   }
   @media (prefers-reduced-motion:reduce) {
-    .bp-switch-bubble.dy-pet-launcher .dy-pet-img { animation-duration:.01ms !important; animation-iteration-count:1 !important; }
+    .bp-switch-bubble.dy-pet-launcher .dy-pet-img { animation-duration: 1.2s !important; }
   }
   .bp-switch-panel {
     position: fixed !important; z-index: 999998;
@@ -1047,13 +1047,16 @@ function checkConfig() {
       configStatus.classList.remove('warn');
       bubble.classList.remove('warn');
       if (bubble.dataset.petState === 'warn') setPetState('idle');
-      if (bubble.dataset.bubbleVisible === 'true' && bubble.dataset.hasUpdates !== 'true') hidePetBubble();
+      // 台词存活期内不掐掉正在显示的台词（避免展开面板时"来，给你看。"被瞬间隐藏）
+      if (!petSpeechActive() && bubble.dataset.bubbleVisible === 'true' && bubble.dataset.hasUpdates !== 'true') hidePetBubble();
     } else {
       configStatus.innerHTML = '⚠ 配置异常<br>' + issues.map(s => '· ' + s).join('<br>');
       configStatus.classList.add('warn');
       bubble.classList.add('warn');
-      setPetState('idle');
-      showPetBubble(DY_PET_BUBBLE_TEXT.warn);
+      if (!petSpeechActive()) {
+        setPetState('idle');
+        showPetBubble(DY_PET_BUBBLE_TEXT.warn);
+      }
     }
   } catch (e) {
     configStatus.textContent = '检测失败';
@@ -2615,14 +2618,15 @@ const petAnimations = {
   idle: 'dy-pet-idle 3.2s ease-in-out infinite',
   press: 'dy-pet-press .38s cubic-bezier(.2,.9,.25,1) both',
   drag: 'dy-pet-drag .72s ease-in-out infinite',
-  open: 'dy-pet-open .68s cubic-bezier(.16,1,.3,1) both',
-  close: 'dy-pet-close .56s cubic-bezier(.4,0,.2,1) both',
+  open: 'dy-pet-open .82s cubic-bezier(.16,1,.3,1) both',
+  close: 'dy-pet-close .72s cubic-bezier(.4,0,.2,1) both',
   release: 'dy-pet-release .58s cubic-bezier(.2,.9,.25,1) both',
 };
 let petStateTimer = null;
 let petBubbleTimer = null;
 let petTransitionTimer = null;
 let petPressStartedAt = 0;
+let petSpeechUntil = 0; // 台词存活截止时间（performance.now / Date.now），期间 checkConfig 不得掐掉台词
 function setPetState(state, duration) {
   if (!bubble) return;
   clearTimeout(petStateTimer);
@@ -2636,10 +2640,15 @@ function setPetState(state, duration) {
     petStateTimer = p.setTimeout(() => { setPetState('idle'); }, duration);
   }
 }
+function petSpeechActive() {
+  const now = (p.performance && p.performance.now) ? p.performance.now() : Date.now();
+  return petSpeechUntil > now;
+}
 function hidePetBubble() {
   if (!petNoticeBubble) return;
   clearTimeout(petBubbleTimer);
   petBubbleTimer = null;
+  petSpeechUntil = 0;
   bubble.dataset.bubbleVisible = 'false';
 }
 function positionPetBubble() {
@@ -2654,6 +2663,7 @@ function positionPetBubble() {
 }
 function restorePetBubbleAfterAction() {
   petBubbleTimer = null;
+  petSpeechUntil = 0;
   if (bubble.dataset.hasUpdates === 'true') {
     petNoticeBubble.textContent = bubble.dataset.hasDanger === 'true' ? DY_PET_BUBBLE_TEXT.danger : DY_PET_BUBBLE_TEXT.update;
     bubble.dataset.bubbleVisible = 'true';
@@ -2670,7 +2680,11 @@ function showPetBubble(text, duration) {
   bubble.dataset.bubbleVisible = 'true';
   positionPetBubble();
   if (duration > 0) {
+    const now = (p.performance && p.performance.now) ? p.performance.now() : Date.now();
+    petSpeechUntil = now + duration;
     petBubbleTimer = p.setTimeout(restorePetBubbleAfterAction, duration);
+  } else {
+    petSpeechUntil = 0;
   }
 }
 
@@ -2679,8 +2693,8 @@ function showPetBubble(text, duration) {
 // 等 press 播完（最多 380ms）再一起切换面板 + open/close 动画与台词，节奏自然不割裂。
 let suppressBubbleClick = false;
 const PET_PRESS_PLAY = 380;   // 等 press 动画播完再动作（与原版一致）
-const PET_PRESS_LIFE = 1100;  // press 台词生命周期（与原版一致）
-const PET_ACTION_LIFE = 1600; // open/close 台词留存时长（与原版一致）
+const PET_PRESS_LIFE = 2400;  // press 台词生命周期
+const PET_ACTION_LIFE = 3200; // open/close 台词留存时长
 bubble.addEventListener('click', (e) => {
   if (suppressBubbleClick) { suppressBubbleClick = false; e.preventDefault(); return; }
   const showing = panel.style.display !== 'none';
