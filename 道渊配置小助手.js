@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.2/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.3/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.2';
+const DAOYUAN_VERSION = '1.3.3';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -129,6 +129,29 @@ async function api_setMvuBirthplace(birthplace) {
     try { if (typeof eventEmit === 'function' && M.events && M.events.VARIABLE_UPDATE_ENDED) eventEmit(M.events.VARIABLE_UPDATE_ENDED); } catch (e) {}
     return true;
   })()`);
+}
+
+// 读取 MVU 后端 stat_data.主角.所在界（不写入）
+// 返回 '玄天界' | '仙界' | null（读不到/未初始化）
+// 先 iframe（旧版 TT / 标准 ST，零开销）→ 失败再父页面（TauriTavern 2.2+）
+async function api_getMvuRealm() {
+  try {
+    if (typeof Mvu !== 'undefined' && Mvu.getMvuData) {
+      const d = Mvu.getMvuData({ type: 'message', message_id: -1 });
+      const r = (d && d.stat_data && d.stat_data.主角 && d.stat_data.主角.所在界) || '';
+      if (r === '玄天界' || r === '仙界') return r;
+    }
+  } catch (e) {}
+  try {
+    const r = await runInParent(`(async () => {
+      var M = (typeof Mvu !== 'undefined') ? Mvu : (window.Mvu || (window.parent && window.parent.Mvu));
+      if (typeof M === 'undefined' || !M.getMvuData) return null;
+      var d = M.getMvuData({ type: 'message', message_id: -1 }) || {};
+      return (d.stat_data && d.stat_data.主角) ? d.stat_data.主角.所在界 : null;
+    })()`);
+    if (r === '玄天界' || r === '仙界') return r;
+  } catch (e) {}
+  return null;
 }
 
 // 正则操作（角色级别）
@@ -555,6 +578,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
           <button class="bp-switch-birth-btn" data-birthplace="仙界">仙界</button>
         </div>
         <div id="bp-status-list" style="display:flex;justify-content:center;gap:28px;margin-top:6px;"></div>
+        <div style="font-size:10.5px;color:#6a8098;margin-top:5px;text-align:center;line-height:1.5;">界域随 MVU 自动同步（开局确认、剧情变化都会自动切换），一般无需手动控制</div>
       </div>
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">状态栏模式</div>
@@ -916,6 +940,19 @@ const bpConfirmCancel = ROOT.document.getElementById('bp-confirm-cancel');
 
 const STORAGE_KEY = 'bp-switch-birthplace';
 const MODE_STORAGE_KEY = 'bp-statusbar-mode';
+// 最近一次读到的 MVU 界域（轮询变化检测 + 防循环用）
+let _lastMvuRealm = null;
+// 创建角色页存活标志：填表期间世界书/正则更新会让酒馆重渲染聊天、吞掉玩家
+// 正在填写的表单。创建期间只更新 UI 状态，界域条目由创建页在点「开启仙途」
+// 确认时自行切换（那时数据已提取完毕，重渲染无影响）。
+// 标志为时间戳+心跳（创建页每 5 秒续期）：玩家放弃创建后 30 秒自动失效，
+// 小助手恢复剧情中期的界域自动切换。
+function isCreationActive() {
+  try {
+    const ts = Number(localStorage.getItem('daoyuan-creation-active'));
+    return !isNaN(ts) && ts > 0 && (Date.now() - ts) < 30000;
+  } catch (e) { return false; }
+}
 
 const ENTRY_XUANTIAN = '-内容控制开关-玄天界 (二选一)';
 const ENTRY_XIANJIE = '-内容控制开关-仙界 (二选一)';
@@ -2965,44 +3002,39 @@ async function refreshStatus() {
   }
   try {
     const entries = await api_getWorldbook(wbName);
-    const xu = entries.find(e => e.name === ENTRY_XUANTIAN);
-    const xj = entries.find(e => e.name === ENTRY_XIANJIE);
+    let xu = entries.find(e => e.name === ENTRY_XUANTIAN);
+    let xj = entries.find(e => e.name === ENTRY_XIANJIE);
 
-    // 条目数检测：排除DB条目后 =319绿 / <319红 / >319黄
+    // 条目数检测：排除DB条目后 =334绿 / <334红 / >334黄
     const countEntries = entries.filter(e => !e.name.includes('DB'));
     let countColor, countHint, countWarn;
-    if (countEntries.length === 319) {
+    if (countEntries.length === 334) {
       countColor = '#5B8C5A'; countHint = ''; countWarn = false;
-    } else if (countEntries.length < 319) {
+    } else if (countEntries.length < 334) {
       countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书'; countWarn = true;
     } else {
       countColor = '#e74c3c'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
     }
-    wbCount.innerHTML = '当前版本条目数319，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
+    wbCount.innerHTML = '当前版本条目数334，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
 
     // 双向同步：以 MVU 后端 stat_data.主角.所在界 为权威来源
-    // 先 iframe（旧版 TT / 标准 ST，零开销），失败再父页面（TauriTavern 2.2+）
+    // 小助手切换/剧情推进/创建页开局写入 MVU 后，这里读取界域并让世界书条目 +
+    // 正则自动跟随（不一致才动，避免循环）。创建填表期间跳过对齐——动世界书会
+    // 刷新聊天吞表单；开局确认后的切换由轮询的「创建结束边沿」检测触发。
     try {
-      let mvuRealm = '';
-      try {
-        if (typeof Mvu !== 'undefined' && Mvu.getMvuData) {
-          const mvuData2 = Mvu.getMvuData({ type: 'message', message_id: -1 });
-          mvuRealm = (mvuData2 && mvuData2.stat_data && mvuData2.stat_data.主角 && mvuData2.stat_data.主角.所在界) || '';
-        }
-      } catch(e) {}
-      if (!mvuRealm) {
-        try {
-          const mvuData = await runInParent(`(async () => {
-            var M = (typeof Mvu !== 'undefined') ? Mvu : (window.Mvu || (window.parent && window.parent.Mvu));
-            if (typeof M === 'undefined' || !M.getMvuData) return null;
-            var d = M.getMvuData({ type: 'message', message_id: -1 }) || {};
-            return (d.stat_data && d.stat_data.主角) ? d.stat_data.主角.所在界 : null;
-          })()`);
-          mvuRealm = mvuData || '';
-        } catch(e) {}
-      }
-      if (mvuRealm === '玄天界' || mvuRealm === '仙界') {
+      const mvuRealm = await api_getMvuRealm();
+      if (mvuRealm) {
+        _lastMvuRealm = mvuRealm;
         saveBirthplace(mvuRealm);
+        const wantXj = mvuRealm === '仙界';
+        const xuOn = !!(xu && xu.enabled);
+        const xjOn = !!(xj && xj.enabled);
+        if (!isCreationActive() && xu && xj && (xuOn !== !wantXj || xjOn !== wantXj)) {
+          const freshEntries = await applyRealmToWorldbook(mvuRealm);
+          xu = freshEntries.find(e => e.name === ENTRY_XUANTIAN);
+          xj = freshEntries.find(e => e.name === ENTRY_XIANJIE);
+          console.log('[道渊小助手] MVU界域=' + mvuRealm + '，世界书条目与正则已自动同步');
+        }
       }
     } catch(e) {}
 
@@ -3036,62 +3068,104 @@ function renderStatusInline(label, entry) {
   return '<span class="bp-status-inline"><span class="status-dot ' + cls + '"></span><span class="status-label">' + label + '</span></span>';
 }
 
+// --- 界域应用：世界书条目 + 正则（不含 MVU 写入）---
+// doSwitch（手动点击）与 MVU 自动同步共用；返回刷新后的世界书条目
+async function applyRealmToWorldbook(birthplace) {
+  const wbName = wbSelect.value;
+  if (!wbName) throw new Error('未选择世界书');
+  const isXianjie = birthplace === '仙界';
+
+  // 1. 世界书：内容控制开关 + 动态人物相遇
+  const wbMod = `(entries) => {` +
+    `  var xu = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN)}; });` +
+    `  var xj = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE)}; });` +
+    `  var xuNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN_NPC)}; });` +
+    `  var xjNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE_NPC)}; });` +
+    `  if (xu) { xu.enabled = ${!isXianjie}; }` +
+    `  if (xj) { xj.enabled = ${isXianjie}; }` +
+    `  if (xuNpc) { xuNpc.enabled = ${!isXianjie}; }` +
+    `  if (xjNpc) { xjNpc.enabled = ${isXianjie}; }` +
+    `}`;
+  const freshEntries = await api_replaceWorldbook(wbName, wbMod);
+
+  // 2. 正则：界域 NPC 注入 & 绝色榜（互斥）
+  const reMod = `(regexes) => {` +
+    `  var xuLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_LOW)}; });` +
+    `  var xuHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_HIGH)}; });` +
+    `  var xuBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY1)}; });` +
+    `  var xuBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY2)}; });` +
+    `  var xjLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_LOW)}; });` +
+    `  var xjHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_HIGH)}; });` +
+    `  var xjBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY1)}; });` +
+    `  var xjBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY2)}; });` +
+    `  if (xuLow)    { xuLow.enabled    = ${!isXianjie}; }` +
+    `  if (xuHigh)   { xuHigh.enabled   = ${!isXianjie}; }` +
+    `  if (xuBeauty1) { xuBeauty1.enabled = ${!isXianjie}; }` +
+    `  if (xuBeauty2) { xuBeauty2.enabled = ${!isXianjie}; }` +
+    `  if (xjLow)    { xjLow.enabled    = ${isXianjie}; }` +
+    `  if (xjHigh)   { xjHigh.enabled   = ${isXianjie}; }` +
+    `  if (xjBeauty1) { xjBeauty1.enabled = ${isXianjie}; }` +
+    `  if (xjBeauty2) { xjBeauty2.enabled = ${isXianjie}; }` +
+    `  return regexes;` +
+    `}`;
+  await api_updateTavernRegexes(reMod);
+
+  return freshEntries;
+}
+
 // --- 执行切换（世界书条目 + 正则 + MVU + localStorage + UI）---
 async function doSwitch(birthplace) {
   const wbName = wbSelect.value;
   if (!wbName) { showToast('请先选择世界书'); return; }
 
-  saveBirthplace(birthplace);
-
-  const isXianjie = birthplace === '仙界';
-  let errors = [];
-
-  // 1. 世界书：内容控制开关 + 动态人物相遇
-  try {
-    const wbMod = `(entries) => {` +
-      `  var xu = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN)}; });` +
-      `  var xj = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE)}; });` +
-      `  var xuNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XUANTIAN_NPC)}; });` +
-      `  var xjNpc = entries.find(function(e) { return e.name === ${JSON.stringify(ENTRY_XIANJIE_NPC)}; });` +
-      `  if (xu) { xu.enabled = ${!isXianjie}; }` +
-      `  if (xj) { xj.enabled = ${isXianjie}; }` +
-      `  if (xuNpc) { xuNpc.enabled = ${!isXianjie}; }` +
-      `  if (xjNpc) { xjNpc.enabled = ${isXianjie}; }` +
-      `}`;
-    await api_replaceWorldbook(wbName, wbMod);
-  } catch (e) {
-    errors.push('世界书: ' + e.message);
+  // 创建填表中：切换功能依然可用（小助手是世界书条目的唯一控制者），
+  // 但动世界书会刷新聊天、吞掉正在填写的表单，弹窗二次确认防误触
+  if (isCreationActive()) {
+    confirmCreationSwitch(birthplace);
+    return;
   }
 
-  // 2. 正则：界域 NPC 注入 & 绝色榜（互斥）
+  await doSwitchNow(birthplace);
+}
+
+// 创建期间的切换确认弹窗
+function confirmCreationSwitch(birthplace) {
+  bpConfirmMsg.innerHTML = '<span style="color:#D4AF37;">创建角色进行中</span>';
+  bpConfirmBody.style.display = '';
+  bpConfirmBody.innerHTML =
+    '<div style="font-size:12.5px;color:#c0cede;line-height:1.8;text-align:center;">' +
+    '现在切换界域会立即刷新聊天，<b style="color:#e8a87c;">正在填写的创建表单将全部丢失</b>。<br>' +
+    '界域可直接在创建页选择，点「开启仙途」后小助手会自动同步条目，通常无需在此手动切换。' +
+    '</div>';
+  bpConfirmOk.textContent = '仍要切换';
+  bpConfirmOk.style.display = '';
+  bpConfirmCancel.style.display = '';
+  bpConfirmOverlay.style.display = 'flex';
+  bpConfirmOk.onclick = () => {
+    bpConfirmOverlay.style.display = 'none';
+    bpConfirmBody.style.display = 'none';
+    bpConfirmOk.textContent = '确认';
+    bpConfirmOk.onclick = null;
+    doSwitchNow(birthplace);
+  };
+}
+
+async function doSwitchNow(birthplace) {
+  saveBirthplace(birthplace);
+
+  let errors = [];
+
+  // 1+2. 世界书条目 + 正则
   try {
-    const reMod = `(regexes) => {` +
-      `  var xuLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_LOW)}; });` +
-      `  var xuHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_HIGH)}; });` +
-      `  var xuBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY1)}; });` +
-      `  var xuBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XUANTIAN_BEAUTY2)}; });` +
-      `  var xjLow    = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_LOW)}; });` +
-      `  var xjHigh   = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_HIGH)}; });` +
-      `  var xjBeauty1 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY1)}; });` +
-      `  var xjBeauty2 = regexes.find(function(r) { return r.script_name === ${JSON.stringify(REGEX_XIANJIE_BEAUTY2)}; });` +
-      `  if (xuLow)    { xuLow.enabled    = ${!isXianjie}; }` +
-      `  if (xuHigh)   { xuHigh.enabled   = ${!isXianjie}; }` +
-      `  if (xuBeauty1) { xuBeauty1.enabled = ${!isXianjie}; }` +
-      `  if (xuBeauty2) { xuBeauty2.enabled = ${!isXianjie}; }` +
-      `  if (xjLow)    { xjLow.enabled    = ${isXianjie}; }` +
-      `  if (xjHigh)   { xjHigh.enabled   = ${isXianjie}; }` +
-      `  if (xjBeauty1) { xjBeauty1.enabled = ${isXianjie}; }` +
-      `  if (xjBeauty2) { xjBeauty2.enabled = ${isXianjie}; }` +
-      `  return regexes;` +
-      `}`;
-    await api_updateTavernRegexes(reMod);
+    await applyRealmToWorldbook(birthplace);
   } catch (e) {
-    errors.push('正则: ' + e.message);
+    errors.push('世界书/正则: ' + e.message);
   }
 
   // 3. MVU 后端所在界
   try {
     await api_setMvuBirthplace(birthplace);
+    _lastMvuRealm = birthplace;
   } catch (e) {
     errors.push('MVU: ' + e.message);
   }
@@ -3268,6 +3342,48 @@ refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConf
 for (const btn of birthBtns) {
   btn.addEventListener('click', () => doSwitch(btn.dataset.birthplace));
 }
+
+// --- MVU 界域实时监听 ---
+// 职能分工：小助手是世界书条目/正则的唯一控制者。
+// 创建填表期间玩家在创建页选界域 → 只写入 MVU；小助手这里只同步按钮 UI，
+// 绝不动世界书（会刷新聊天吞表单）。玩家点「开启仙途」确认后创建标志消失，
+// 小助手检测到「创建结束」边沿即自动对齐条目+正则（MVU 为权威来源）。
+// 剧情中期界域变化（飞升等）同样走防抖复读后自动对齐。
+let _realmWatchBusy = false;
+let _wasCreationActive = null; // 上一次轮询时的创建状态
+setInterval(async () => {
+  if (_realmWatchBusy) return;
+  _realmWatchBusy = true;
+  try {
+    const creationNow = isCreationActive();
+    // 创建结束边沿：刚点完「开启仙途」（或放弃创建超时），
+    // MVU 界域已是开局值而条目还是旧的（创建期间被抑制），需要立即对齐
+    const justLeftCreation = (_wasCreationActive === true) && !creationNow;
+    _wasCreationActive = creationNow;
+
+    const r = await api_getMvuRealm();
+    if (r && (r !== _lastMvuRealm || justLeftCreation)) {
+      if (creationNow) {
+        // 创建填表中：只记录并同步按钮状态，不动世界书
+        _lastMvuRealm = r;
+        saveBirthplace(r);
+      } else {
+        // 防抖：等 2 秒复读确认值稳定，避免刷新瞬间旧值误触发
+        await new Promise(res => setTimeout(res, 2000));
+        const r2 = await api_getMvuRealm();
+        if (r2 === r && (r !== _lastMvuRealm || justLeftCreation)) {
+          _lastMvuRealm = r;
+          saveBirthplace(r);
+          if (wbSelect.value) {
+            await refreshStatus();
+            showToast((justLeftCreation ? '开局界域「' : '检测到界域变为「') + r + '」，世界书已自动同步');
+          }
+        }
+      }
+    }
+  } catch (e) {}
+  _realmWatchBusy = false;
+}, 5000);
 
 for (const btn of modeBtns) {
   btn.addEventListener('click', () => doSwitchMode(btn.dataset.mode));
