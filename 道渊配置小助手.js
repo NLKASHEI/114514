@@ -1,9 +1,9 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.4/道渊配置小助手.min.js'
+//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.5/道渊配置小助手.min.js'
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.4';
+const DAOYUAN_VERSION = '1.3.5';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -1017,7 +1017,7 @@ function showToast(msg) {
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
 const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao'];
+const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
 
 let _mvuOutputFormatEnabled = false;
 
@@ -3005,15 +3005,13 @@ async function refreshStatus() {
     let xu = entries.find(e => e.name === ENTRY_XUANTIAN);
     let xj = entries.find(e => e.name === ENTRY_XIANJIE);
 
-    // 条目数检测：排除DB条目后 =334绿 / <334红 / >334黄
+    // 条目数检测：334为基础条目，排除DB条目后 ≥334绿 / <334红
     const countEntries = entries.filter(e => !e.name.includes('DB'));
-    let countColor, countHint, countWarn;
-    if (countEntries.length === 334) {
-      countColor = '#5B8C5A'; countHint = ''; countWarn = false;
-    } else if (countEntries.length < 334) {
-      countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书'; countWarn = true;
+    let countColor, countHint;
+    if (countEntries.length >= 334) {
+      countColor = '#5B8C5A'; countHint = '';
     } else {
-      countColor = '#e74c3c'; countHint = ' — 条目超出，请检查世界书'; countWarn = true;
+      countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书';
     }
     wbCount.innerHTML = '当前版本条目数334，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
 
