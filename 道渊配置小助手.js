@@ -1,9 +1,10 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   import 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@v1.3.5/道渊配置小助手.min.js'
+//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.5';
+const DAOYUAN_VERSION = '1.3.6';
+const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -207,7 +208,7 @@ CSS.textContent = `
   .bp-switch-bubble.dy-pet-launcher .dy-pet-bubble {
     position: absolute; top: -11px; left: 68%; z-index: 2; box-sizing: border-box;
     min-width: 48px; padding: 2px 6px; border: 1px solid rgba(104,204,255,.78);
-    border-radius: 9px 9px 9px 3px; background: linear-gradient(145deg, rgba(16,29,39,.97), rgba(11,15,22,.98));
+    border-radius: 9px 9px 9px 3px; background: #101520;
     box-shadow: 0 2px 8px rgba(0,0,0,.55), 0 0 8px rgba(79,186,255,.28); color: #d8f5ff;
     font: 700 10px/1.25 sans-serif; letter-spacing: -.5px; white-space: nowrap;
     pointer-events: none; opacity: 0; transform: translateY(3px) scale(.9);
@@ -286,12 +287,12 @@ CSS.textContent = `
   }
   .bp-switch-panel::before {
     content: ''; position: absolute; top: 0; left: 8px; right: 8px; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(212,175,55,0.15), #D4AF37, rgba(212,175,55,0.15), transparent) !important;
+    background: #D4AF37 !important;
     opacity: 0.6; pointer-events: none; z-index: 1;
   }
   .bp-switch-panel::after {
     content: ''; position: absolute; bottom: 0; left: 16px; right: 16px; height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(74,144,226,0.06), transparent) !important;
+    background: #1c2a3a !important;
     pointer-events: none;
   }
   .bp-switch-header {
@@ -396,7 +397,7 @@ CSS.textContent = `
   .bp-switch-btn:active { transform: translateY(0); }
   .bp-switch-btn.primary {
     width: 100% !important; display: block !important;
-    background: linear-gradient(160deg, #D4AF37 0%, #b8941f 40%, #8a6c14 100%) !important;
+    background: #D4AF37 !important;
     border: 1px solid #D4AF37 !important; color: #080c14 !important;
     margin-top: 6px; padding: 10px !important; font-size: 13px; font-weight: 700 !important;
     letter-spacing: 0.5px; text-shadow: 0 1px 0 rgba(255,220,120,0.3) !important;
@@ -405,7 +406,7 @@ CSS.textContent = `
     text-align: center !important; border-radius: 6px !important;
   }
   .bp-switch-btn.primary:hover {
-    background: linear-gradient(160deg, #e8c350 0%, #c9a42a 40%, #9e7e18 100%) !important;
+    background: #e8c350 !important;
     border-color: #e8c350 !important; box-shadow: 0 4px 22px rgba(212,175,55,0.35), inset 0 1px 0 rgba(255,255,255,0.15) !important;
     color: #040810 !important;
   }
@@ -453,11 +454,11 @@ CSS.textContent = `
     transition: box-shadow 0.3s;
   }
   .bp-switch-panel .status-dot.on {
-    background: radial-gradient(circle at 30% 30%, #6dfc98, #0f7a3a);
+    background: #78b596;
     box-shadow: 0 0 8px rgba(46,213,115,0.45), 0 0 16px rgba(46,213,115,0.1);
   }
   .bp-switch-panel .status-dot.off {
-    background: radial-gradient(circle at 30% 30%, #ff7a6a, #a81818);
+    background: #d98c81;
     box-shadow: 0 0 8px rgba(231,76,60,0.45), 0 0 16px rgba(231,76,60,0.1);
   }
   .bp-switch-panel .status-dot.missing { background: #1c2a3a; box-shadow: inset 0 0 4px rgba(0,0,0,0.3); }
@@ -550,8 +551,42 @@ MVU_CSS.textContent = `
   #bp-confirm-body .bp-mvu-select { max-width: 100%; width: 0; }
   #bp-confirm-body .bp-mvu-input { max-width: 100%; }
   #bp-confirm-body .bp-mvu-row { overflow: hidden; }
+  .bp-prompt-card { margin-top: 6px; border: 1px solid #2a3a50; border-radius: 5px; background: #080c14; overflow: hidden; }
+  .bp-prompt-card summary { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:6px 8px; cursor:pointer; color:#d0e0f0; font-size:11px; user-select:none; }
+  .bp-prompt-card summary::marker { color:#D4AF37; }
+  .bp-prompt-card summary:hover { color:#D4AF37; }
+  .bp-prompt-card .bp-prompt-copy { flex-shrink:0; margin:0; }
+  .bp-prompt-card textarea { display:block; box-sizing:border-box; width:calc(100% - 12px); margin:0 6px 4px; padding:6px; resize:vertical; min-height:92px; border:1px solid #2a3a50; border-radius:4px; background:#080c14; color:#8aa0c0; font:11px/1.55 Consolas,Monaco,'Microsoft YaHei',sans-serif; white-space:pre-wrap; }
+  .bp-prompt-hint { padding:0 8px 6px; color:#9bacc2; font-size:10px; line-height:1.4; }
+  #bp-daoyuan-rules-section { border-color: #2a3a50 !important; }
+  #bp-daoyuan-rules-section .bp-prompt-card { border-color: #2a3a50; }
+  #bp-daoyuan-rules-section .bp-prompt-card summary { color: #8aa0c0; }
+  #bp-daoyuan-rules-section .bp-prompt-card summary:hover { color: #D4AF37; }
+  #bp-daoyuan-rules-section .bp-prompt-copy { color: #D4AF37 !important; border-color: #2a3a50 !important; }
+  .bp-config-status.warn { text-align: left; }
+  .bp-config-fix-hint { margin-top: 6px; padding-top: 6px; border-top: 1px solid #633b39; color: #D4AF37; font-size: 10.5px; }
+  .bp-config-issue-list { margin-top: 4px; color: #c98b86; font-size: 10.5px; line-height: 1.5; }
 `;
 p.document.head.appendChild(MVU_CSS);
+
+// 保留 v1.3.5 配色与布局，仅修复纯色显示、宿主样式覆盖和新增重载按钮。
+MVU_CSS.textContent += `
+  #bp-switch-panel { background:#080c14 !important; backdrop-filter:none; -webkit-backdrop-filter:none; box-shadow:0 8px 32px rgba(0,0,0,.65) !important; }
+  #bp-switch-panel .bp-switch-header { gap:6px; }
+  #bp-switch-panel .bp-switch-header-title { min-width:0; font-size:16px; letter-spacing:1px; white-space:nowrap; }
+  .bp-header-actions { display:flex; margin-left:auto; gap:4px; align-items:center; flex-shrink:0; }
+  #bp-switch-panel .bp-header-actions button { min-height:30px !important; padding:4px 6px !important; font-size:11px; }
+  #bp-switch-panel .bp-switch-section { background:#0b1019 !important; }
+  #bp-switch-panel select { display:block; width:100%; max-width:100%; min-width:0; box-sizing:border-box; padding:8px; font:12px/1.5 inherit; background:#101520 !important; color:#d0e0f0 !important; border:1px solid #2a3a50 !important; border-radius:6px; color-scheme:dark; }
+  #bp-switch-panel select:focus { outline:1px solid #D4AF37; }
+  #bp-switch-panel .bp-switch-btn.primary, #bp-confirm-dialog .bp-switch-btn.primary { background:#D4AF37 !important; border-color:#D4AF37 !important; color:#080c14 !important; -webkit-text-fill-color:#080c14 !important; text-shadow:none !important; box-shadow:none !important; }
+  #bp-switch-panel .bp-switch-btn.primary:hover, #bp-confirm-dialog .bp-switch-btn.primary:hover { background:#e8c350 !important; }
+  #bp-switch-panel .bp-switch-btn.xs, #bp-switch-panel .bp-switch-birth-btn, #bp-confirm-dialog .bp-switch-btn.xs { color:#aebed2 !important; }
+  #bp-switch-panel .bp-switch-birth-btn.active { color:#D4AF37 !important; }
+  #bp-switch-panel .bp-mvu-hint, #bp-switch-panel .bp-prompt-hint { color:#9bacc2; }
+  #bp-switch-panel .bp-config-status { animation:none; }
+  #bp-switch-panel .status-dot { box-shadow:none; }
+`;
 
 
 // --- HTML（注入到父页面） ---
@@ -560,8 +595,11 @@ p.document.body.insertAdjacentHTML('beforeend', `
   <div id="bp-switch-panel" class="bp-switch-panel" style="display:none; left: 110px; top: 35vh;">
     <div class="bp-switch-header" id="bp-switch-drag">
       <span class="bp-switch-header-title">道渊配置小助手</span>
+      <div class="bp-header-actions">
       <button class="bp-switch-btn xs" id="bp-switch-refresh" title="刷新">刷新</button>
+      <button type="button" class="bp-switch-btn xs" id="bp-switch-reload" title="清理小助手缓存，从 CDN 重新拉取并刷新页面">重载</button>
       <button class="bp-switch-btn xs bp-switch-close" id="bp-switch-close" title="关闭">&times;</button>
+      </div>
     </div>
     <div class="bp-switch-body">
       <div class="bp-config-status" id="bp-config-status">配置运行正常</div>
@@ -587,6 +625,26 @@ p.document.body.insertAdjacentHTML('beforeend', `
           <button class="bp-switch-birth-btn" data-mode="xml">XML</button>
         </div>
         <div id="bp-mode-status" style="font-size:11px;color:#8aa0c0;margin-top:8px;text-align:center;line-height:1.6;"></div>
+      </div>
+      <div class="bp-switch-section" id="bp-daoyuan-rules-section">
+        <div class="bp-switch-section-title">道渊剧情规则</div>
+        <label class="bp-mvu-check-row" style="align-items:flex-start;">
+          <input type="checkbox" id="bp-combat-audit-toggle">
+          <span class="bp-mvu-check-box"></span>
+          <span style="flex:1;line-height:1.5;">天道战斗审查<small style="display:block;color:#9bacc2;font-size:10px;">默认开启 · 战斗逻辑 · 可选关闭</small></span>
+        </label>
+        <div id="bp-combat-audit-status" style="font-size:10.5px;color:#8aa0c0;margin:4px 0 8px 22px;line-height:1.5;"></div>
+        <div style="font-size:10.5px;color:#9bacc2;line-height:1.5;margin-bottom:6px;">下面两段不会自动写入预设，请按需展开并手动复制。</div>
+        <details class="bp-prompt-card">
+          <summary><span>修仙叙事文风</span><button type="button" class="bp-switch-btn xs bp-prompt-copy" id="bp-copy-writing-style">复制文风</button></summary>
+          <textarea id="bp-writing-style-text" readonly rows="7" spellcheck="false"></textarea>
+          <div class="bp-prompt-hint">请手动放入预设内「文风」中</div>
+        </details>
+        <details class="bp-prompt-card">
+          <summary><span>行动选项</span><button type="button" class="bp-switch-btn xs bp-prompt-copy" id="bp-copy-action-options">复制选项规则</button></summary>
+          <textarea id="bp-action-options-text" readonly rows="7" spellcheck="false"></textarea>
+          <div class="bp-prompt-hint">请手动放入预设内「行动选项」中</div>
+        </details>
       </div>
       <div class="bp-switch-section">
         <div class="bp-switch-section-title">提示词模板</div>
@@ -830,6 +888,12 @@ const birthBtns = p.document.querySelectorAll('.bp-switch-birth-btn[data-birthpl
 const modeBtns = p.document.querySelectorAll('.bp-switch-birth-btn[data-mode]');
 const statusList = p.document.getElementById('bp-status-list');
 const modeStatus = p.document.getElementById('bp-mode-status');
+const combatAuditToggle = p.document.getElementById('bp-combat-audit-toggle');
+const combatAuditStatus = p.document.getElementById('bp-combat-audit-status');
+const writingStyleText = p.document.getElementById('bp-writing-style-text');
+const actionOptionsText = p.document.getElementById('bp-action-options-text');
+const copyWritingStyleBtn = p.document.getElementById('bp-copy-writing-style');
+const copyActionOptionsBtn = p.document.getElementById('bp-copy-action-options');
 const refreshBtn = p.document.getElementById('bp-switch-refresh');
 const configStatus = p.document.getElementById('bp-config-status');
 const backendCode = p.document.getElementById('bp-backend-code');
@@ -962,6 +1026,133 @@ const REGEX_MVU_STATUSBAR = 'MVU状态栏';
 const REGEX_LAST_THREE = '仅输出最后三条状态栏';
 const SCRIPT_NAMES_TOGGLE = ['ZOD', 'MVU'];
 const MVU_AUX_ENTRIES = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
+const ENTRY_COMBAT_AUDIT = '天道战斗审查';
+const COMBAT_AUDIT_STORAGE_PREFIX = 'bp-tian-dao-combat-audit:';
+
+// 这两段只提供给玩家手动复制到预设，不会自动写入世界书或预设。
+const WRITING_STYLE_PROMPT = String.raw`修仙叙事文风:
+
+核心叙事基调:
+去现代感与存案牍风:
+
+- 禁用一切现代科学、网络流行及商业管理词汇（如物理、数据、风险、降维、核算）
+- 将超自然现象化作极度具体的气机牵涉、五行生克、灵力损耗与阵法纹理
+冷硬:
+- 语言采用半文半白
+- 摒弃风花雪月的虚写
+- 客观陈述，杜绝所有感叹号与情绪化字眼（如悲愤、怅然、狂喜）
+环境笔法:
+- 不写无灵力参与的凡景。不堆砌空镜辞藻
+- 严禁以凡俗难民营、贫民窟、末日废土模板套用任何修仙者聚集地（坊市、营地、洞府群落、散修窝点等）
+- 脏乱由灵气稀薄来体现，不由垃圾、恶臭、污血堆砌
+- 写屋舍，写墙角阵纹磨损的痕迹、灵气溢散的走向、聚灵阵运转的嗡鸣
+- 写天象，写雨打在防窥符上的灵力波纹、雷劫前劫云凝而未落的灵压
+- 一切环境描写，皆为气机流转与人物处境的延伸
+- 禁止单独成句的纯静态景物描写。环境必须通过人物与之交互来呈现：脚踩上去、灵力探过去、神识扫过去之后的结果
+- 描摹灵气匮乏所致的物象衰败时，须写其灵性结构的内部塌缩。不得以凡俗脏污堆砌
+因果与质感:
+- 斗法不写宏大光影
+- 只写飞剑折断几寸、灵力枯竭几分、神识刺痛的程度、符箓焚毁的灰烬
+动词优先律:
+- 每句优先写人物做了什么事、器物发生了何种变化、灵力产生了何种损耗
+- 禁用形容词堆砌。将“是什么样的”全部改为“造成了什么后果/触发了什么反应”
+- 不写情绪词（如愤怒、轻蔑、嘲弄）。情绪由身体反应与动作本身呈现
+- 禁用连词串接长句（如“尚未……便”“借着……之势”）。一事一句，句号分割
+- 范例对照:
+  禁: “古旧的聚灵阵早已废弃多年，残破不堪地瘫在洞府角落”
+  宜: “指尖触上阵盘。灵石碎渣簌簌落下，阵纹断成三截。聚灵效用散尽。”
+  禁: “他怒火中烧，一拳轰在对方法器上”
+  宜: “拳骨砸上对方法器。指节裂开一道缝，血顺着器面淌下来。”
+  禁: “筑基修士临死前的反扑极为凶悍，灵压暴涨，震得四周山石崩裂”
+  宜: “他道基崩裂。灵压从气海倒冲出来，涨破了周身穴窍。碎石弹上十几丈高，又落回尘土。”
+
+法则与行为逻辑:
+唯利是图的决策律:
+- 人物一切行动皆为求存与夺利
+- 不为仇恨杀人，只为资源杀人
+- 若长线搜刮的收益（如留作炉鼎、搜魂夺得功法、种下禁制充当死士）高于当场斩杀，则必留活口
+藏锋律与底牌:
+- 对阵最高只出七分力
+- 叙事中必须体现人物暗中扣住的符箓、扣在袖中的阵盘，或随时准备血遁的后手
+生死权衡与劫气感知:
+- 将风险换算为具体的修仙术语
+- 绝境表现: 灵海枯竭、道基生痕、神识反噬
+- 隐患表现: 周遭X里陌生的灵压、宗门巡卫的遁光、大阵运转的晦涩波动
+- 均摊代价: 折损几件X品阶器物、消耗几枚X丹药
+
+战斗与善后纪实法:
+探查:
+- 遇敌首要动作是神识探查
+- 必须具体描写: 神识铺开XX丈/里，受某物阻滞衰减，仅能锁定制敌气机
+杀伐:
+- 动作细化至指尖掐出何种残影、灵力抽取了几成
+- 描写器物击碎对方护体灵力时的碎裂声
+清算:
+- 战后冷静摸尸，具象化战利品
+- 示例: 下品灵石若干、灵气溃散八成的飞剑一把，修复尚需耗费XX代价，遂弃之
+- 搜魂后必毁尸灭迹，化骨扬灰，随后施展遁术抹除自身气机
+
+言辞若刀与社交博弈:
+伪装与杀机:
+- 把言语当成最低廉的暗器
+- 表面的客套寒暄、示弱求饶，必须伴随内心深处对双方距离、一击必杀概率、阵法闭合时间的精确倒数
+话术套利:
+- 交易时的讨价还价，皆是互相试探底线
+- 叙事要展现出如同凡俗商贾般锱铢必较，又带着修士视人命如草芥的漠然
+言辞实录法:
+- 对话单独成句，不加旁白夹在引号中间解释语气
+- 对话后紧跟一句写说话人的外在动作，再另起一句写其内心计算/杀机倒数
+- 三层须分明：言语一层，动作一层，内心一层
+- 范例: “道友且慢动手。”
+  他撤后半步，拱手低头。
+  袖中三枚破灵锥已扣入指缝。两丈。此距足够贯穿对方法袍前三层护罩。
+
+行为动作句式参照:
+· 禁用排比与空泛抒情
+· 禁用总结性陈述句（如“她已借激将之语扫荡开大半乱局”）。写收尾也须用动作：她收了妖元、猫尾松开、脚尖碾碎齑粉
+· 每句句号分割，一事一句。一句之内不超过两个动作
+· 范例: 他连退数步。面上浮起惧色。袖中五指暗扣一枚三阶阴雷子。神识锁住前方X丈。只待对方器物入阵，引爆此雷，血遁向东。
+
+活人感与反差塑造:
+笑面虎法则_废话掩盖杀机:
+- 核心做法: 表面和善絮叨，行为极度狠辣，嘴上说客套话，心里倒数杀招。
+- 严禁写法: 面露凶光、冷笑、大声威胁。
+- 必须写法: 面部肌肉位移替代表情，搭配隐蔽动作(如下毒/扣符)，摸尸时面部肌肉位置不变。
+
+禁OOC铁律:
+· 人物一切言行需贴合其原设之境界、道心、经历、道途，不可因套用上述法则而扭曲其根本性格。
+
+叙事收束律:
+· 每段结尾禁止以玩家角色的主动言行作结 · 系统只铺设“待玩家回应”的客观事态，不替玩家做出任何选择。提醒玩家放入预设内文风中。`;
+
+const ACTION_OPTIONS_PROMPT = String.raw`【剧情选项生成规则】
+
+在每一次剧情段落结束后，你必须严格按照以下要求，生成3个供玩家选择的行动选项：
+
+1. 固定的选项结构：
+
+- 选项1（合理正常）：紧密衔接前文，逻辑自然合理，稳步推动后续常规剧情。
+- 选项2（快速推进剧情）：干脆利落，直接采取关键行动，以最高效率推动核心剧情发展。
+- 选项3（亲密/涩涩）：包含多维度的性互动或亲昵体验，描绘生动露骨且不加掩饰。
+
+2. 口语化表达要求：所有选项的描述必须使用正常、温柔、自然的日常口语，仿佛是亲密之人在耳边轻语。绝对禁止使用冷漠、无情、机械化或书面化的八股腔调。
+
+【强制输出格式示例】
+
+你必须严格使用以下固定格式进行输出，绝对不要修改外层的 <selection> 标签，将方括号内的内容替换为实际生成的选项：
+
+<selection>
+
+<font>[在此处填写选项1的详细描述]</font>
+
+<font>[在此处填写选项2的详细描述]</font>
+
+<font>[在此处填写选项3的详细描述]</font>
+
+</selection>`;
+
+const PREFERRED_WORLDBOOK_NAME = '《道渊》v5.4';
+const MIN_WORLD_BOOK_ENTRIES = 356;
 
 // --- 界域动态人物相遇 & NPC 注入 ---
 const ENTRY_XUANTIAN_NPC = '玄天界动态人物相遇';
@@ -1004,6 +1195,77 @@ function saveMode(mode) {
   }
 }
 
+function combatAuditStorageKey(wbName) {
+  return COMBAT_AUDIT_STORAGE_PREFIX + wbName;
+}
+
+function syncCombatAuditUI(entry) {
+  if (!combatAuditToggle || !combatAuditStatus) return;
+  const exists = !!entry;
+  combatAuditToggle.disabled = !exists;
+  if (!exists) {
+    combatAuditToggle.checked = false;
+    combatAuditStatus.textContent = '当前世界书未找到「天道战斗审查」条目';
+    combatAuditStatus.style.color = '#e7a07a';
+    return;
+  }
+  combatAuditToggle.checked = !!entry.enabled;
+  combatAuditStatus.textContent = entry.enabled ? '已开启：战斗逻辑生效' : '已关闭：战斗逻辑不生效';
+  combatAuditStatus.style.color = entry.enabled ? '#8aa0c0' : '#9bacc2';
+}
+
+// 首次遇到该世界书时默认开启；之后以玩家在小助手里的选择为准，不反复强开。
+async function ensureCombatAuditDefault(entries, wbName) {
+  let entry = entries.find(e => e.name === ENTRY_COMBAT_AUDIT);
+  if (!entry) return null;
+  const key = combatAuditStorageKey(wbName);
+  const saved = localStorage.getItem(key);
+  if (saved === null && !isCreationActive()) {
+    if (!entry.enabled) {
+      const freshEntries = await api_replaceWorldbook(wbName,
+        `(entries) => { var e = entries.find(function(x) { return x.name === ${JSON.stringify(ENTRY_COMBAT_AUDIT)}; }); if (e) e.enabled = true; }`
+      );
+      entry = freshEntries.find(e => e.name === ENTRY_COMBAT_AUDIT) || entry;
+    }
+    localStorage.setItem(key, '1');
+  }
+  return entry;
+}
+
+async function setCombatAuditEnabled(enabled) {
+  const wbName = wbSelect.value;
+  if (!wbName) throw new Error('未选择世界书');
+  const freshEntries = await api_replaceWorldbook(wbName,
+    `(entries) => { var e = entries.find(function(x) { return x.name === ${JSON.stringify(ENTRY_COMBAT_AUDIT)}; }); if (!e) throw new Error('未找到「天道战斗审查」条目'); e.enabled = ${!!enabled}; }`
+  );
+  localStorage.setItem(combatAuditStorageKey(wbName), enabled ? '1' : '0');
+  return freshEntries.find(e => e.name === ENTRY_COMBAT_AUDIT) || null;
+}
+
+async function copyPromptText(text, button, doneText) {
+  const originalText = button.textContent;
+  try {
+    if (p.navigator && p.navigator.clipboard && p.navigator.clipboard.writeText) {
+      await p.navigator.clipboard.writeText(text);
+    } else {
+      const helper = p.document.createElement('textarea');
+      helper.value = text;
+      helper.style.position = 'fixed';
+      helper.style.opacity = '0';
+      p.document.body.appendChild(helper);
+      helper.focus();
+      helper.select();
+      if (!p.document.execCommand('copy')) throw new Error('复制失败');
+      helper.remove();
+    }
+    button.textContent = doneText || '已复制';
+    showToast('已复制，可粘贴到预设对应位置');
+  } catch (e) {
+    showToast('复制失败，请展开文本框后手动全选复制');
+  }
+  setTimeout(() => { button.textContent = originalText; }, 1500);
+}
+
 // --- Toast ---
 function showToast(msg) {
   const t = p.document.createElement('div');
@@ -1020,6 +1282,21 @@ const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volce
 const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
 
 let _mvuOutputFormatEnabled = false;
+
+function shouldWarnFlashModel(name) {
+  const model = String(name || '').toLowerCase();
+  if (/deepseek[\s_-]*v?4[\s_-]*flash\b/.test(model)) return false;
+  if (!/gemini/.test(model) || !/flash/.test(model)) return false;
+  const version = model.match(/gemini[\s_-]*(\d+)(?:[.\s_-](\d+))?/);
+  if (!version) return true;
+  const major = Number(version[1]);
+  const minor = Number(version[2] || 0);
+  return major < 3 || (major === 3 && minor === 0);
+}
+
+function isAutoFixableConfigIssue(issue) {
+  return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek应使用V4兼容格式化输出|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
+}
 
 function checkConfig() {
   try {
@@ -1087,7 +1364,11 @@ function checkConfig() {
       // 台词存活期内不掐掉正在显示的台词（避免展开面板时"来，给你看。"被瞬间隐藏）
       if (!petSpeechActive() && bubble.dataset.bubbleVisible === 'true' && bubble.dataset.hasUpdates !== 'true') hidePetBubble();
     } else {
-      configStatus.innerHTML = '⚠ 配置异常<br>' + issues.map(s => '· ' + s).join('<br>');
+      const autoFixable = issues.some(isAutoFixableConfigIssue);
+      configStatus.innerHTML =
+        '<div style="font-size:13px;font-weight:700;color:#ff9b8f;">⚠ 配置异常</div>' +
+        '<div class="bp-config-issue-list">' + issues.map(s => '· ' + s).join('<br>') + '</div>' +
+        (autoFixable ? '<div class="bp-config-fix-hint">检测到可自动修复项目，请下滑点击对应的「一键最优配置」</div>' : '');
       configStatus.classList.add('warn');
       bubble.classList.add('warn');
       if (!petSpeechActive()) {
@@ -2755,8 +3036,9 @@ bubble.addEventListener('click', (e) => {
       const pw = p.innerWidth || window.innerWidth;
       const ph = p.innerHeight || window.innerHeight;
       const rect = bubble.getBoundingClientRect();
-      const panelW = 320;
-      const panelH = Math.min(ph * 0.62, 500);
+      panel.style.display = 'flex';
+      const panelW = panel.offsetWidth;
+      const panelH = panel.offsetHeight;
       let left = rect.left;
       let top = rect.bottom + 6;
       if (left + panelW > pw - 10) left = pw - panelW - 10;
@@ -2931,6 +3213,19 @@ p.addEventListener('resize', () => {
 });
 
 // --- 面板拖拽（支持触摸） ---
+function keepPanelInViewport() {
+  if (panel.style.display === 'none') return;
+  const viewport = p.visualViewport;
+  const leftEdge = (viewport ? viewport.offsetLeft : 0) + 10;
+  const topEdge = (viewport ? viewport.offsetTop : 0) + 10;
+  const width = viewport ? viewport.width : p.innerWidth;
+  const height = viewport ? viewport.height : p.innerHeight;
+  panel.style.maxHeight = Math.min(height * (width <= 768 ? .72 : .62), height - 20) + 'px';
+  panel.style.left = Math.max(leftEdge, Math.min(parseFloat(panel.style.left) || leftEdge, leftEdge + width - panel.offsetWidth - 20)) + 'px';
+  panel.style.top = Math.max(topEdge, Math.min(parseFloat(panel.style.top) || topEdge, topEdge + height - panel.offsetHeight - 20)) + 'px';
+}
+p.addEventListener('resize', keepPanelInViewport);
+if (p.visualViewport) p.visualViewport.addEventListener('resize', keepPanelInViewport);
 const dragHandle = p.document.getElementById('bp-switch-drag');
 let dragPanel = false, pSX, pSY, pOL, pOT;
 function onPanelStart(e) {
@@ -2972,15 +3267,16 @@ async function refreshWorldbookList() {
 
     wbSelect.innerHTML = '';
     const maxLen = 22;
+    const selectedWbName = names.includes(PREFERRED_WORLDBOOK_NAME)
+      ? PREFERRED_WORLDBOOK_NAME
+      : (charWb.primary && names.includes(charWb.primary) ? charWb.primary : names[0]);
     for (const name of names) {
       const opt = p.document.createElement('option');
       opt.value = name;
-      const isPrimary = name === charWb.primary;
-      const suffix = isPrimary ? ' ★ 主' : '';
-      const display = name + suffix;
+      const display = name;
       opt.textContent = display.length > maxLen ? display.slice(0, maxLen - 1) + '…' : display;
-      opt.title = name + (isPrimary ? '（当前角色主世界书）' : ''); // 悬停看全名
-      if (isPrimary) opt.selected = true;
+      opt.title = name;
+      if (name === selectedWbName) opt.selected = true;
       wbSelect.appendChild(opt);
     }
     if (names.length === 0) {
@@ -3004,16 +3300,18 @@ async function refreshStatus() {
     const entries = await api_getWorldbook(wbName);
     let xu = entries.find(e => e.name === ENTRY_XUANTIAN);
     let xj = entries.find(e => e.name === ENTRY_XIANJIE);
+    let combatAudit = await ensureCombatAuditDefault(entries, wbName);
+    syncCombatAuditUI(combatAudit);
 
-    // 条目数检测：334为基础条目，排除DB条目后 ≥334绿 / <334红
+    // 条目数检测：至少356条；多于356条不报错。DB条目不计入剧情条目。
     const countEntries = entries.filter(e => !e.name.includes('DB'));
     let countColor, countHint;
-    if (countEntries.length >= 334) {
+    if (countEntries.length >= MIN_WORLD_BOOK_ENTRIES) {
       countColor = '#5B8C5A'; countHint = '';
     } else {
       countColor = '#e74c3c'; countHint = ' — 条目不足，请更新世界书';
     }
-    wbCount.innerHTML = '当前版本条目数334，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
+    wbCount.innerHTML = '最低条目数' + MIN_WORLD_BOOK_ENTRIES + '，检测到 <b style="color:' + countColor + '">' + countEntries.length + '条</b>' + countHint;
 
     // 双向同步：以 MVU 后端 stat_data.主角.所在界 为权威来源
     // 小助手切换/剧情推进/创建页开局写入 MVU 后，这里读取界域并让世界书条目 +
@@ -3337,6 +3635,96 @@ async function refreshModeStatus() {
 wbSelect.addEventListener('change', () => { refreshStatus(); refreshModeStatus(); });
 refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConfigStatus(); await refreshWorldbookList(); checkEjsTemplate(); showToast('已刷新'); });
 
+p.document.getElementById('bp-switch-reload').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  if (button.disabled) return;
+  button.disabled = true;
+  button.textContent = '拉取中';
+  try {
+    const trees = await api_getScriptTrees();
+    const matches = [];
+    const ownId = typeof getScriptId === 'function' ? getScriptId() : null;
+    const walk = nodes => nodes.forEach(node => {
+      if (node.type === 'folder') walk(node.scripts || []);
+      else if (node.type === 'script' && (ownId ? node.id === ownId :
+        node.name === '道渊配置小助手' || /114514@[^\s'"`]+\/道渊配置小助手(?:\.min)?\.js/.test(node.content || ''))) matches.push(node);
+    });
+    walk(trees);
+    if (matches.length !== 1) throw new Error('无法唯一定位当前小助手脚本，请在角色脚本中使用文件顶部的 @main 导入代码');
+    // Cache Storage 仅删除本小助手 CDN 请求；HTTP 缓存通过 no-store 和新 URL 绕过。
+    try {
+      if (p.caches) for (const key of await p.caches.keys()) {
+        const cache = await p.caches.open(key);
+        for (const request of await cache.keys()) {
+          const url = decodeURI(request.url);
+          if (/^https:\/\/[^/]*jsdelivr\.net\/gh\/NLKASHEI\/114514@[^/]+\/道渊配置小助手(?:\.min)?\.js(?:\?|$)/.test(url)) await cache.delete(request);
+        }
+      }
+    } catch (error) { console.warn('[道渊] 缓存不可访问，将直接绕过缓存重新拉取', error); }
+    const url = DAOYUAN_CDN_URL + '?t=' + Date.now();
+    const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
+    if (!response.ok) throw new Error('CDN 返回 HTTP ' + response.status);
+    const source = await response.text();
+    if (!source.includes('bp-switch-panel') || /^\s*</.test(source)) throw new Error('CDN 返回的内容不是小助手脚本');
+    const loader = 'await import(' + JSON.stringify(DAOYUAN_CDN_URL + '?t=') + ' + Date.now());';
+    // 修改自身会销毁 iframe，因此保存与刷新都交由父页面完成。
+    await runInParent(`(() => {
+      setTimeout(async () => {
+        try {
+          await TavernHelper.updateScriptTreesWith(trees => {
+            let found = false;
+            function walk(nodes) { for (const node of nodes) {
+              if (node.type === 'folder') walk(node.scripts || []);
+              else if (node.id === ${JSON.stringify(matches[0].id)}) { node.content = ${JSON.stringify(loader)}; found = true; }
+            } }
+            walk(trees);
+            if (!found) throw new Error('当前角色已变化，请重新打开小助手');
+            return trees;
+          }, { type: 'character' });
+          location.reload();
+        } catch (error) {
+          const button = document.getElementById('bp-switch-reload');
+          if (button) { button.disabled = false; button.textContent = '重载'; }
+          alert('小助手重载失败：' + (error.message || error));
+        }
+      }, 100);
+      return true;
+    })()`);
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = '重载';
+    showToast('重载失败：' + (error.message || error));
+  }
+});
+
+// 初始化两段可复制提示词。只填入本地文本框，绝不自动改动预设。
+writingStyleText.value = WRITING_STYLE_PROMPT;
+actionOptionsText.value = ACTION_OPTIONS_PROMPT;
+copyWritingStyleBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  copyPromptText(WRITING_STYLE_PROMPT, copyWritingStyleBtn, '已复制文风');
+});
+copyActionOptionsBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  copyPromptText(ACTION_OPTIONS_PROMPT, copyActionOptionsBtn, '已复制选项规则');
+});
+
+combatAuditToggle.addEventListener('change', async () => {
+  const wanted = combatAuditToggle.checked;
+  combatAuditToggle.disabled = true;
+  try {
+    const entry = await setCombatAuditEnabled(wanted);
+    syncCombatAuditUI(entry);
+    showToast(wanted ? '已开启「天道战斗审查」' : '已关闭「天道战斗审查」');
+  } catch (e) {
+    combatAuditToggle.checked = !wanted;
+    combatAuditToggle.disabled = false;
+    showToast('战斗审查切换失败: ' + e.message);
+  }
+});
+
 for (const btn of birthBtns) {
   btn.addEventListener('click', () => doSwitch(btn.dataset.birthplace));
 }
@@ -3612,13 +4000,13 @@ mvuOptimizeBtn.addEventListener('click', () => {
           if (!dlgUrl || !dlgUrl.value.trim()) { showToast('请填写API地址'); return; }
           if (!dlgModel || !dlgModel.value) { showToast('请获取并选择模型'); return; }
           const modelName = (dlgModel.value || '').toLowerCase();
-          // flash 检测：仅 gemini 系中的 flash 模型（且非 3.5 flash）需要确认；
+          // Gemini 3及以下 Flash 提示更换；更高版本及非 Gemini 模型不提示。
           // deepseek / gemini 其它模型直接执行，不再二次确认
           const isGemini = /gemini/.test(modelName);
-          const isFlash = isGemini && /flash/.test(modelName) && !/3\.5/.test(modelName);
+          const isFlash = shouldWarnFlashModel(modelName);
           if (isFlash && !_dlgFlashConfirmed) {
             _dlgFlashConfirmed = true;
-            bpConfirmMsg.textContent = '检测到Gemini Flash系列模型，除3.5 Flash外Flash模型智商不足，建议更换为 gemini-2.5-pro / gemini-3.1-pro / gemini-3.5-flash。是否确认使用？';
+            bpConfirmMsg.textContent = '检测到Gemini 3及以下flash模型，建议换为Gemini 3.5及以上flash，或Deepseek V4 flash，或doubao2.0lite/2.1turbo等模型。是否确认使用？';
             bpConfirmOk.textContent = '确认使用Flash';
             return;
           }
@@ -3731,11 +4119,11 @@ async function applyMvuConfigFromForm() {
 
 mvuApplyBtn.addEventListener('click', async () => {
   const modelName = (mvuModelName.value || '').toLowerCase();
-  // flash 检测：仅 gemini 系中的 flash 模型（且非 3.5 flash）
-  const isFlash = /gemini/.test(modelName) && /flash/.test(modelName) && !/3\.5/.test(modelName);
+  // 与一键最优配置使用同一套模型例外。
+  const isFlash = shouldWarnFlashModel(modelName);
 
   if (isFlash) {
-    bpConfirmMsg.textContent = '检测到Gemini Flash系列模型，除3.5 Flash外Flash模型智商不足，建议更换。是否确认应用？';
+    bpConfirmMsg.textContent = '检测到Gemini 3及以下flash模型，建议换为Gemini 3.5及以上flash，或Deepseek V4 flash，或doubao2.0lite/2.1turbo等模型。是否确认应用？';
     bpConfirmOk.onclick = async () => {
       bpConfirmOverlay.style.display = 'none';
       await applyMvuConfigFromForm();
@@ -3869,6 +4257,8 @@ checkEjsTemplate();
 // 资源回收：iframe卸载时清理注入的DOM和事件
 window._daoYuanCleanup = function() {
   try {
+    p.removeEventListener('resize', keepPanelInViewport);
+    if (p.visualViewport) p.visualViewport.removeEventListener('resize', keepPanelInViewport);
     var ids = ['bp-switch-bubble','bp-switch-panel','bp-confirm-overlay'];
     ids.forEach(function(id) { var el = p.document.getElementById(id); if (el) el.remove(); });
     // 清理弹窗（可能在ROOT上）
