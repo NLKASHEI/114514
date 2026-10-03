@@ -1,10 +1,10 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
+//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.6';
-const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
+const DAOYUAN_VERSION = '1.3.7';
+const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -1279,7 +1279,13 @@ function showToast(msg) {
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
 const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','chr1','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
+const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
+const CONFIG_URL_BLACKLIST_PATTERNS = [/chr\d+/i];
+function isConfigUrlBlacklisted(url) {
+  const value = String(url || '').toLowerCase();
+  return CONFIG_URL_BLACKLIST.some(kw => value.includes(kw)) ||
+    CONFIG_URL_BLACKLIST_PATTERNS.some(pattern => pattern.test(value));
+}
 
 let _mvuOutputFormatEnabled = false;
 
@@ -2315,31 +2321,66 @@ function makeFakeCompletion(init) {
   }
 }
 
-// ── Fetch 劫持：黑名单命中时返回伪造的空 OpenAI 响应 ──
+function ewcReadRequestMeta(init) {
+  const result = { model: '', apiUrl: '' };
+  try {
+    if (!init || typeof init.body !== 'string' || !init.body.trim()) return result;
+    const body = JSON.parse(init.body);
+    const modelKeys = ['model', 'chat_completion_model', 'custom_model', 'openai_model', 'claude_model'];
+    const urlKeys = ['reverse_proxy', 'server_url', 'custom_url', 'api_url', 'base_url'];
+    for (const key of modelKeys) {
+      if (typeof body?.[key] === 'string' && body[key].trim()) { result.model = body[key].trim(); break; }
+    }
+    for (const key of urlKeys) {
+      if (typeof body?.[key] === 'string' && body[key].trim()) { result.apiUrl = body[key].trim(); break; }
+    }
+  } catch (e) {}
+  return result;
+}
+
+function ewcRequestBlockReason(requestMeta) {
+  // 只检查这一次请求体明确携带的目标URL。不得回退扫描酒馆设置、
+  // Connection Manager配置或历史保存的API，否则未启用连接也会误判。
+  const explicitApiUrl = String(requestMeta?.apiUrl || '').toLowerCase();
+  if (explicitApiUrl && CONFIG_URL_WHITELIST.some(kw => explicitApiUrl.includes(kw))) return '';
+  if (explicitApiUrl && isConfigUrlBlacklisted(explicitApiUrl)) return 'url';
+
+  const explicitModel = String(requestMeta?.model || '').toLowerCase();
+  if (!explicitModel) return '';
+  return CONFIG_BLACKLIST.some(kw => explicitModel.includes(String(kw).toLowerCase())) ? 'model' : '';
+}
+
+// ── Fetch 劫持：只检查当前聊天请求明确携带的URL与模型 ──
 function ewcInjectFetchHook() {
-  const _origFetch = p.fetch.bind(p);
-  p.fetch = function(input, init) {
+  if (typeof p.fetch !== 'function') return;
+  // 同一页面脚本重建时先拆掉自己的上一层，防止旧配置继续拦截新请求。
+  if (p._daoYuanFetchHook && p.fetch === p._daoYuanFetchHook && typeof p._daoYuanFetchOriginal === 'function') {
+    p.fetch = p._daoYuanFetchOriginal;
+  }
+  const originalFetch = p.fetch.bind(p);
+  const fetchHook = function(input, init) {
     try {
       const url = typeof input === 'string' ? input : (input?.url || '');
       const isChatReq = url.includes('/api/backends/chat-completions/') || url.includes('/api/connections/generate');
-      if (!isChatReq) return _origFetch(input, init);
+      if (!isChatReq) return originalFetch(input, init);
 
-      const apiUrl = getMainApiUrl().toLowerCase();
-      if (!apiUrl) return _origFetch(input, init);
-      // 1) URL白名单优先 → 官方源直接放行
-      if (CONFIG_URL_WHITELIST.some(kw => apiUrl.includes(kw))) return _origFetch(input, init);
-      // 2) URL黑名单检测 → 伪造空响应
-      if (CONFIG_URL_BLACKLIST.some(kw => apiUrl.includes(kw))) return makeFakeCompletion(init);
-
-      const mainModel = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
-      const isBlocked = CONFIG_BLACKLIST.some(kw => mainModel.includes(kw));
-      if (!isBlocked) return _origFetch(input, init);
-
-      // 模型名命中黑名单 → 伪造空响应
-      return makeFakeCompletion(init);
+      const requestMeta = ewcReadRequestMeta(init);
+      return ewcRequestBlockReason(requestMeta) ? makeFakeCompletion(init) : originalFetch(input, init);
     } catch(e) {}
-    return _origFetch(input, init);
+    return originalFetch(input, init);
   };
+  p._daoYuanFetchOriginal = originalFetch;
+  p._daoYuanFetchHook = fetchHook;
+  p.fetch = fetchHook;
+}
+function ewcRestoreFetchHook() {
+  try {
+    if (p._daoYuanFetchHook && p.fetch === p._daoYuanFetchHook && typeof p._daoYuanFetchOriginal === 'function') {
+      p.fetch = p._daoYuanFetchOriginal;
+    }
+    delete p._daoYuanFetchHook;
+    delete p._daoYuanFetchOriginal;
+  } catch (e) {}
 }
 
 // 保存到磁盘
@@ -4257,6 +4298,7 @@ checkEjsTemplate();
 // 资源回收：iframe卸载时清理注入的DOM和事件
 window._daoYuanCleanup = function() {
   try {
+    ewcRestoreFetchHook();
     p.removeEventListener('resize', keepPanelInViewport);
     if (p.visualViewport) p.visualViewport.removeEventListener('resize', keepPanelInViewport);
     var ids = ['bp-switch-bubble','bp-switch-panel','bp-confirm-overlay'];
