@@ -1,10 +1,10 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js?t=' + Date.now())
+//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
 const DAOYUAN_VERSION = '1.3.7';
-const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js';
+const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
