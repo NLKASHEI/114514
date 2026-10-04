@@ -3,7 +3,7 @@
 //   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.7';
+const DAOYUAN_VERSION = '1.3.8';
 const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
@@ -1278,7 +1278,7 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'sukaka', 'together', 'x.ai', 'z.ai'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'apihub.veletis.com', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'sukaka', 'together', 'x.ai', 'z.ai'];
 const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
 const CONFIG_URL_BLACKLIST_PATTERNS = [/chr\d+/i];
 function isConfigUrlBlacklisted(url) {
@@ -2326,13 +2326,36 @@ function ewcReadRequestMeta(init) {
   try {
     if (!init || typeof init.body !== 'string' || !init.body.trim()) return result;
     const body = JSON.parse(init.body);
-    const modelKeys = ['model', 'chat_completion_model', 'custom_model', 'openai_model', 'claude_model'];
-    const urlKeys = ['reverse_proxy', 'server_url', 'custom_url', 'api_url', 'base_url'];
-    for (const key of modelKeys) {
-      if (typeof body?.[key] === 'string' && body[key].trim()) { result.model = body[key].trim(); break; }
+    const readText = key => typeof body?.[key] === 'string' ? body[key].trim() : '';
+    const source = String(body?.chat_completion_source || body?.source || body?.api_type || '').trim().toLowerCase();
+    const sourceModelKeys = {
+      claude: 'claude_model', openai: 'openai_model', makersuite: 'google_model',
+      google: 'google_model', vertexai: 'vertexai_model', openrouter: 'openrouter_model',
+      ai21: 'ai21_model', mistralai: 'mistralai_model', custom: 'custom_model',
+      cohere: 'cohere_model', perplexity: 'perplexity_model', groq: 'groq_model',
+      siliconflow: 'siliconflow_model', electronhub: 'electronhub_model', chutes: 'chutes_model',
+      nanogpt: 'nanogpt_model', deepseek: 'deepseek_model', aimlapi: 'aimlapi_model',
+      xai: 'xai_model', pollinations: 'pollinations_model', cometapi: 'cometapi_model',
+      moonshot: 'moonshot_model', fireworks: 'fireworks_model', azure_openai: 'azure_openai_model',
+      zai: 'zai_model'
+    };
+    result.model = readText('model');
+    if (!result.model && sourceModelKeys[source]) result.model = readText(sourceModelKeys[source]);
+    if (!result.model) result.model = readText('chat_completion_model');
+    if (!result.model && !source) {
+      const candidates = [...new Set(Object.values(sourceModelKeys).map(readText).filter(Boolean))];
+      if (candidates.length === 1) result.model = candidates[0];
     }
-    for (const key of urlKeys) {
-      if (typeof body?.[key] === 'string' && body[key].trim()) { result.apiUrl = body[key].trim(); break; }
+    const sourceUrlKeys = source === 'custom'
+      ? ['reverse_proxy', 'custom_url', 'server_url', 'api_url', 'base_url']
+      : ['reverse_proxy', 'server_url', 'api_url', 'base_url'];
+    for (const key of sourceUrlKeys) {
+      const value = readText(key);
+      if (value) { result.apiUrl = value; break; }
+    }
+    if (!result.apiUrl && !source) {
+      const candidates = [...new Set(['reverse_proxy', 'custom_url', 'server_url', 'api_url', 'base_url'].map(readText).filter(Boolean))];
+      if (candidates.length === 1) result.apiUrl = candidates[0];
     }
   } catch (e) {}
   return result;
