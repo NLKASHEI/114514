@@ -3,7 +3,7 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.13';
+const DAOYUAN_VERSION = '1.3.14';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
@@ -1278,8 +1278,8 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'apihub.veletis.com', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'sukaka', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novai','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu','api.leostudio.cc','aiwangyou','xindu.xyz','blacknoir','nonbiri.sweet-home'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'apihub.veletis.com', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'sukaka', 'together', 'x.ai', 'z.ai', 'nonbiri.sweet-home.io'];
+const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novai','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu','api.leostudio.cc','aiwangyou','xindu.xyz','blacknoir'];
 const CONFIG_URL_BLACKLIST_PATTERNS = [/chr\d+/i];
 function isConfigUrlBlacklisted(url) {
   const value = String(url || '').toLowerCase();
