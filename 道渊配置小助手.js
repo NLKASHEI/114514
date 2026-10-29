@@ -3,7 +3,7 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.16';
+const DAOYUAN_VERSION = '1.3.17';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
@@ -2284,10 +2284,11 @@ function syncMvuNativePreset(presetName) {
   })()`).catch(() => {});
 }
 
-// ── 请求截断说明 / 第三方中转风险 ──
-// 部分第三方 API 中转服务可能对请求进行模型重定向、路由替换或额外系统提示词注入，标称模型不一定等于实际调用模型。
-// 示例截图仅用于提示此类风险，不能单凭截图认定特定服务存在不当行为，应结合可验证的请求与响应记录判断。
-// 既然已经能查阅 GitHub 源码，建议同时核验中转服务的模型路由说明、隐私政策及实际响应，谨慎选择可信服务。
+// ── 请求截断说明 / 中转站掺水与模型伪装 ──
+// 截断名单依据维护者收集的多方反馈及复核结果整理，涵盖相关中转站地址、关键词及惯用名。
+// 拦截针对的是偷换模型、掺水路由及在用户不知情时向请求注入系统提示词等做法。
+// 挂着高规格模型的招牌，后台却调用其他模型，还让模型伪装身份，用户花的钱和得到的服务根本对不上。
+// 仓库 README 附有模型重定向与系统提示词注入的截图及中转服务选择建议。
 // ── 伪造 OpenAI 空响应（零报错，零网络请求） ──
 function makeFakeCompletion(init) {
   var isStream = true;
