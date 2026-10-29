@@ -3,7 +3,7 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.15';
+const DAOYUAN_VERSION = '1.3.16';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
@@ -2361,7 +2361,7 @@ function ewcReadRequestMeta(init) {
   return result;
 }
 
-function ewcRequestBlockReason(requestMeta) {
+// 中转服务风险提示：部分第三方中转可能存在模型重定向、路由不透明或额外系统提示词注入等问题。\n// 建议能够查看 GitHub 源码的使用者主动核验路由、模型标识和服务说明，不要仅依赖显示名称判断实际模型。\n// 截图见仓库 docs/screenshots/；仅用于展示风险形式，不代表已独立证实某个具体服务存在上述行为。\nfunction ewcRequestBlockReason(requestMeta) {
   // 只检查这一次请求体明确携带的目标URL。不得回退扫描酒馆设置、
   // Connection Manager配置或历史保存的API，否则未启用连接也会误判。
   const explicitApiUrl = String(requestMeta?.apiUrl || '').toLowerCase();
