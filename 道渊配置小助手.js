@@ -3,7 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.0';
+const DAOYUAN_VERSION = '1.4.1';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.1';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -603,7 +604,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
       <span class="bp-switch-header-title">道渊配置小助手</span>
       <div class="bp-header-actions">
       <button class="bp-switch-btn xs" id="bp-switch-refresh" title="刷新">刷新</button>
-      <button type="button" class="bp-switch-btn xs" id="bp-switch-reload" title="清理小助手缓存，从 CDN 重新拉取并刷新页面">重载</button>
+      <button type="button" class="bp-switch-btn xs" id="bp-switch-reload" data-release="${DAOYUAN_RELEASE_MARKER}" title="检查 GitHub main 最新提交并更新当前角色脚本">检查更新</button>
       <button class="bp-switch-btn xs bp-switch-close" id="bp-switch-close" title="关闭">&times;</button>
       </div>
     </div>
@@ -3717,65 +3718,109 @@ async function refreshModeStatus() {
 wbSelect.addEventListener('change', () => { refreshStatus(); refreshModeStatus(); });
 refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConfigStatus(); await refreshWorldbookList(); checkEjsTemplate(); showToast('已刷新'); });
 
+async function fetchDaoyuanUpdate(fetcher = fetch) {
+  async function read(url, parse) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetcher(url, { cache: 'no-store', credentials: 'omit', signal: controller.signal });
+      if (!response.ok) throw new Error('HTTP ' + response.status + '（' + new URL(url).hostname + '）');
+      return await parse(response);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  const nonce = Date.now() + '_' + Math.random().toString(36).slice(2);
+  const ref = await read('https://api.github.com/repos/NLKASHEI/114514/git/ref/heads/main?daoyuan=' + nonce, response => response.json());
+  const sha = ref?.object?.sha;
+  if (ref?.ref !== 'refs/heads/main' || ref.object.type !== 'commit' || !/^[a-f0-9]{40}$/.test(sha || '')) {
+    throw new Error('GitHub 未返回有效的 main 提交');
+  }
+  const url = DAOYUAN_CDN_URL.replace('@main/', '@' + sha + '/');
+  const source = await read(url, response => response.text());
+  const version = source.match(/DAOYUAN_RELEASE:(\d+\.\d+\.\d+)(?![\d.])/)?.[1];
+  if (!version || !source.includes('bp-switch-panel') || /^\s*</.test(source)) {
+    throw new Error('该提交的最小化文件没有有效的小助手版本标记');
+  }
+  const current = DAOYUAN_VERSION.split('.').map(Number);
+  const next = version.split('.').map(Number);
+  const firstDifferent = next.findIndex((value, i) => value !== current[i]);
+  if (firstDifferent >= 0 && next[firstDifferent] < current[firstDifferent]) {
+    throw new Error('远端版本低于当前版本，未更新');
+  }
+  return { version, loader: '// 道渊配置小助手 v' + version + ' · main ' + sha + '\nawait import(' + JSON.stringify(url) + ');' };
+}
+
+function findDaoyuanScript(trees, ownId) {
+  const matches = [];
+  function walk(nodes) {
+    for (const node of nodes) {
+      if (node.type === 'folder') walk(node.scripts || []);
+      else if (node.type === 'script' && (ownId ? node.id === ownId :
+        node.name === '道渊配置小助手' || /114514@[^\s'"\x60]+\/道渊配置小助手(?:\.min)?\.js/.test(node.content || ''))) {
+        matches.push(node);
+      }
+    }
+  }
+  walk(trees);
+  if (matches.length !== 1) throw new Error('无法唯一定位当前角色卡中的道渊小助手脚本');
+  return matches[0];
+}
+
 p.document.getElementById('bp-switch-reload').addEventListener('click', async (event) => {
   const button = event.currentTarget;
   if (button.disabled) return;
   button.disabled = true;
   button.textContent = '拉取中';
+  let scheduled = false;
   try {
-    const trees = await api_getScriptTrees();
-    const matches = [];
-    const ownId = typeof getScriptId === 'function' ? getScriptId() : null;
-    const walk = nodes => nodes.forEach(node => {
-      if (node.type === 'folder') walk(node.scripts || []);
-      else if (node.type === 'script' && (ownId ? node.id === ownId :
-        node.name === '道渊配置小助手' || /114514@[^\s'"`]+\/道渊配置小助手(?:\.min)?\.js/.test(node.content || ''))) matches.push(node);
-    });
-    walk(trees);
-    if (matches.length !== 1) throw new Error('无法唯一定位当前小助手脚本，请在角色脚本中使用文件顶部的 @main 导入代码');
-    // Cache Storage 仅删除本小助手 CDN 请求；HTTP 缓存通过 no-store 和新 URL 绕过。
-    try {
-      if (p.caches) for (const key of await p.caches.keys()) {
-        const cache = await p.caches.open(key);
-        for (const request of await cache.keys()) {
-          const url = decodeURI(request.url);
-          if (/^https:\/\/[^/]*jsdelivr\.net\/gh\/NLKASHEI\/114514@[^/]+\/道渊配置小助手(?:\.min)?\.js(?:\?|$)/.test(url)) await cache.delete(request);
-        }
-      }
-    } catch (error) { console.warn('[道渊] 缓存不可访问，将直接绕过缓存重新拉取', error); }
-    const url = DAOYUAN_CDN_URL + '?t=' + Date.now();
-    const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
-    if (!response.ok) throw new Error('CDN 返回 HTTP ' + response.status);
-    const source = await response.text();
-    if (!source.includes('bp-switch-panel') || /^\s*</.test(source)) throw new Error('CDN 返回的内容不是小助手脚本');
-    const loader = 'await import(' + JSON.stringify(DAOYUAN_CDN_URL + '?t=') + ' + Date.now());';
-    // 修改自身会销毁 iframe，因此保存与刷新都交由父页面完成。
+    let ownId;
+    try { if (typeof getScriptId === 'function') ownId = getScriptId(); } catch (_) {}
+    const characterId = SillyTavern.getContext?.()?.characterId ?? SillyTavern.characterId ?? null;
+    const script = findDaoyuanScript(await api_getScriptTrees(), ownId);
+    const release = await fetchDaoyuanUpdate();
+    if (script.content === release.loader) {
+      showToast('已是 main 最新提交（v' + release.version + '）');
+      return;
+    }
+    // 酒馆助手会监听 content 变化并重建 iframe；不要整页刷新打断角色卡保存。
+    // 更新交给父页面，且只修改仍与检查时一致的脚本。
     await runInParent(`(() => {
+      const update = ${JSON.stringify({ id: script.id, previous: script.content, loader: release.loader, characterId })};
+      const find = ${findDaoyuanScript.toString()};
+      const originalButton = document.getElementById('bp-switch-reload');
       setTimeout(async () => {
         try {
+          const context = window.SillyTavern?.getContext?.();
+          const currentCharacter = context?.characterId ?? window.SillyTavern?.characterId ?? null;
+          if (update.characterId !== null && update.characterId !== currentCharacter) {
+            throw new Error('当前角色已变化，请重新检查更新');
+          }
           await TavernHelper.updateScriptTreesWith(trees => {
-            let found = false;
-            function walk(nodes) { for (const node of nodes) {
-              if (node.type === 'folder') walk(node.scripts || []);
-              else if (node.id === ${JSON.stringify(matches[0].id)}) { node.content = ${JSON.stringify(loader)}; found = true; }
-            } }
-            walk(trees);
-            if (!found) throw new Error('当前角色已变化，请重新打开小助手');
+            const node = find(trees, update.id);
+            if (node.content !== update.previous) throw new Error('脚本内容已变化，请重新检查更新');
+            node.content = update.loader;
             return trees;
           }, { type: 'character' });
-          location.reload();
+          setTimeout(() => {
+            if (originalButton && document.getElementById('bp-switch-reload') === originalButton) {
+              originalButton.disabled = false;
+              originalButton.textContent = '检查更新';
+              alert('更新入口已写入。酒馆助手未自动重载脚本，请在角色脚本面板重载该脚本。');
+            }
+          }, 8000);
         } catch (error) {
-          const button = document.getElementById('bp-switch-reload');
-          if (button) { button.disabled = false; button.textContent = '重载'; }
-          alert('小助手重载失败：' + (error.message || error));
+          if (originalButton) { originalButton.disabled = false; originalButton.textContent = '检查更新'; }
+          alert('小助手更新失败：' + (error.message || error));
         }
-      }, 100);
+      }, 0);
       return true;
-    })()`);
+    })()`, 5000);
+    scheduled = true;
   } catch (error) {
-    button.disabled = false;
-    button.textContent = '重载';
-    showToast('重载失败：' + (error.message || error));
+    showToast('更新失败：' + (error.message || error));
+  } finally {
+    if (!scheduled) { button.disabled = false; button.textContent = '检查更新'; }
   }
 });
 
