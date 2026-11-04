@@ -1,10 +1,12 @@
 // ═══════════════ 道渊配置小助手 ═══════════════
 // 酒馆助手中粘贴以下一行即可：
-//   await import('https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js?t=' + Date.now())
+//   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.3.7';
-const DAOYUAN_CDN_URL = 'https://testingcf.jsdelivr.net/gh/NLKASHEI/114514@master/道渊配置小助手.min.js';
+const DAOYUAN_VERSION = '1.4.2';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.2';
+const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
+const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
 const ROOT = (() => { try { if (window.top && window.top.document) return window.top; } catch(e) {} return window; })();
 
@@ -47,16 +49,21 @@ if (oldBubble) oldBubble.remove();
 // iframe 中的异步 API（getWorldbook/updateWorldbookWith）调用会因
 // 请求上下文问题失败。解决办法：往父页面注入 <script> 标签，
 // 在父页面原生上下文中执行操作，结果通过 CustomEvent 回传。
-function runInParent(fnString) {
+function runInParent(fnString, timeoutMs = 0) {
   return new Promise((resolve, reject) => {
     const token = 'bp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const handler = (e) => {
       if (!e.detail || e.detail.token !== token) return;
+      clearTimeout(timer);
       p.document.removeEventListener('bp-result', handler);
       if (e.detail.error) reject(new Error(e.detail.error));
       else resolve(e.detail.result);
     };
     p.document.addEventListener('bp-result', handler);
+    const timer = timeoutMs > 0 ? setTimeout(() => {
+      p.document.removeEventListener('bp-result', handler);
+      reject(new Error('父页面未返回配置应用结果'));
+    }, timeoutMs) : null;
 
     const script = p.document.createElement('script');
     script.textContent = `
@@ -597,7 +604,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
       <span class="bp-switch-header-title">道渊配置小助手</span>
       <div class="bp-header-actions">
       <button class="bp-switch-btn xs" id="bp-switch-refresh" title="刷新">刷新</button>
-      <button type="button" class="bp-switch-btn xs" id="bp-switch-reload" title="清理小助手缓存，从 CDN 重新拉取并刷新页面">重载</button>
+      <button type="button" class="bp-switch-btn xs" id="bp-switch-reload" data-release="${DAOYUAN_RELEASE_MARKER}" title="检查 GitHub main 最新提交并更新当前角色脚本">检查更新</button>
       <button class="bp-switch-btn xs bp-switch-close" id="bp-switch-close" title="关闭">&times;</button>
       </div>
     </div>
@@ -636,7 +643,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
         <div id="bp-combat-audit-status" style="font-size:10.5px;color:#8aa0c0;margin:4px 0 8px 22px;line-height:1.5;"></div>
         <div style="font-size:10.5px;color:#9bacc2;line-height:1.5;margin-bottom:6px;">下面两段不会自动写入预设，请按需展开并手动复制。</div>
         <details class="bp-prompt-card">
-          <summary><span>修仙叙事文风</span><button type="button" class="bp-switch-btn xs bp-prompt-copy" id="bp-copy-writing-style">复制文风</button></summary>
+          <summary><span>文风与叙事规范</span><button type="button" class="bp-switch-btn xs bp-prompt-copy" id="bp-copy-writing-style">复制文风</button></summary>
           <textarea id="bp-writing-style-text" readonly rows="7" spellcheck="false"></textarea>
           <div class="bp-prompt-hint">请手动放入预设内「文风」中</div>
         </details>
@@ -715,7 +722,7 @@ p.document.body.insertAdjacentHTML('beforeend', `
             </select>
           </div>
           <div class="bp-mvu-hint">假流模型将自动开启假流兼容</div>
-          <div class="bp-mvu-hint">建议选择 gemini 2.5p / 3.1p / 3.5f 等模型</div>
+          <div class="bp-mvu-hint">推荐 ${EXTRA_MODEL_RECOMMENDATION} 级别的模型</div>
         </div>
         </div><!-- end bp-mvu-custom-api -->
         <!-- 额外模型解析面板（内部折叠） -->
@@ -772,6 +779,10 @@ p.document.body.insertAdjacentHTML('beforeend', `
           <label class="bp-mvu-check-row">
             <input type="checkbox" id="bp-mvu-auto-request"><span class="bp-mvu-check-box"></span><span>启用自动请求</span>
           </label>
+          <div class="bp-mvu-row">
+            <label class="bp-mvu-label" for="bp-mvu-min-request-length">最小请求字数</label>
+            <input class="bp-mvu-input num" id="bp-mvu-min-request-length" type="number" min="0" step="1">
+          </div>
           <!-- 高级参数 -->
           <div class="bp-mvu-collapse-header" id="bp-mvu-adv-toggle">
             <span class="bp-mvu-collapse-arrow" id="bp-mvu-adv-arrow">▶</span><span>高级参数</span>
@@ -909,6 +920,7 @@ const mvuRespFormat = p.document.getElementById('bp-mvu-resp-format');
 const mvuRequestMode = p.document.getElementById('bp-mvu-request-mode');
 const mvuRequestCount = p.document.getElementById('bp-mvu-request-count');
 const mvuAutoRequest = p.document.getElementById('bp-mvu-auto-request');
+const mvuMinRequestLength = p.document.getElementById('bp-mvu-min-request-length');
 const mvuApiUrl = p.document.getElementById('bp-mvu-api-url');
 // 随机头部 / 关闭thinking / API方案（MVU新版）
 const mvuRandomHeaderRow = p.document.getElementById('bp-mvu-random-header-row');
@@ -1026,104 +1038,46 @@ const REGEX_MVU_STATUSBAR = 'MVU状态栏';
 const REGEX_LAST_THREE = '仅输出最后三条状态栏';
 const SCRIPT_NAMES_TOGGLE = ['ZOD', 'MVU'];
 const MVU_AUX_ENTRIES = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
-const ENTRY_COMBAT_AUDIT = '天道战斗审查';
+const ENTRY_COMBAT_AUDIT = '[mvu_plot]天道战斗审查';
 const COMBAT_AUDIT_STORAGE_PREFIX = 'bp-tian-dao-combat-audit:';
 
 // 这两段只提供给玩家手动复制到预设，不会自动写入世界书或预设。
-const WRITING_STYLE_PROMPT = String.raw`修仙叙事文风:
+const WRITING_STYLE_PROMPT = String.raw`文风与叙事规范
+一、整体文风
+采用传统东方玄幻修仙网文风格，以第二人称叙述为主。语言平实、自然、清晰、沉稳，通过人物行动、事件发展、现实反应与因果关系推动剧情。长短句结合，普通情节简洁推进，关键事件、人物冲突与战斗转折充分展开。描写应具体且有用，避免流水账、过度扩写、辞藻堆砌及无关细节。
+文风统一不代表人物统一。叙述风格不得改变人物的性格、认知、立场与行为逻辑。
+二、人物与心理
+人物必须依据角色卡中的性格、经历、价值观、立场、欲望、人际关系、知识水平及当前处境行动，不得为了制造冲突、反转或迎合文风而扭曲人设。
+人物可以善良或邪恶、坦率或狡诈、勇敢或怯懦、谨慎或冲动。正直者可以守信助人，善良者可以真诚怜悯，重情者可以为亲友牺牲；不得将善意解释为利益交换、正义解释为虚伪、牺牲解释为愚蠢。不同人物应有独立的思维方式、道德底线与决策标准，不得将所有人塑造成冷漠、多疑、精于算计的类型。
+心理描写应具体自然，符合人物性格与认知。推理必须有信息依据，区分事实、判断、猜测与未知，允许误判和后续修正。只有符合人物性格与处境时，才重点描写利弊权衡、风险评估与长远谋划。情绪应自然呈现，避免反复分析、重复描写及强行故作深沉。
+三、互动与对话
+人物互动必须符合双方的关系、立场、性格与当前情境。亲友可以信任关心，陌生人可以保持距离或释放善意，敌对者可以交涉、欺骗或直接冲突。
+对话应自然、直接，符合人物身份、知识水平与表达习惯。人物可以坦率、撒谎、隐瞒、试探或拒绝，但必须符合自身逻辑。日常交流不必句句藏有深意，不得将所有对话写成试探、讥讽、威胁或利益谈判。删减重复解释与无意义的悬念，保留真实自然的人际交流。
+四、场景与动作
+环境描写应交代必要的空间、地形、光线、声音及其他相关细节，并服务于场景呈现、人物观察与事件发展。动作必须明确主体、目标、方式、先后顺序及实际结果，符合时间、空间与人物状态。重要行动应展现必要的过程、对方反应和结果，普通动作简洁带过。避免堆砌景物、重复渲染氛围或赋予每个细节特殊意义。
+五、战斗与冲突
+战斗应清晰呈现攻防过程、双方应对、局势变化及最终结果，使战局发展具有可理解的依据。
+战斗结果必须符合修为、能力、功法、装备、伤势、资源、已知信息与环境条件，不得为了爽点或戏剧效果破坏实力差距与既定事实。战术、欺骗、环境利用及弱点攻击必须符合人物的经验与能力，并承担相应后果。重要交锋适当展开，普通交手不必机械重复攻防流程。人物的战斗方式应符合自身性格，实力悬殊时可以迅速结束，势均力敌时则可充分展开。
+六、剧情、视角与世界观
+剧情通过事件、行动、信息变化与人物选择推进，保持因果连贯。重要决定、关系变化、伤势、资源消耗、情报与事件结果必须得到后续承接，不得无故忽略或改写。悬念应来自真实的信息差与未解决的问题，不得故意隐瞒人物已知信息或无限拖延答案。
+保持叙事视角与信息逻辑稳定。人物只能依据观察、经历、他人告知、合理推理或自身能力获取信息，不得凭空知晓他人内心、隐藏身份及未知秘密。人物的猜测不等于客观事实。
+修仙设定应通过行动、能力表现与实际后果自然呈现。人物认知必须符合其身份、阅历、修为与知识来源。世界观介绍以当前剧情需要为限，不得堆砌背景资料，也不得将所有人物关系简化为利益争夺与弱肉强食。
+七、最终执行原则
+根据情节重要程度控制篇幅：普通情节简洁，关键事件充分；描写具体但不过度，心理细致但不冗长，对话自然，战斗合理，因果完整。
+严禁滥用修辞、重复描写、强行推理、无故反转、统一人物思维、扭曲善恶、越界获取信息，以及让文风或剧情需要凌驾于角色设定和既定事实之上。
+统一叙述风格，独立人物性格；推理必须有据，行动必须合乎人设；尊重客观事实，保持因果连贯；允许真诚与善意，也允许自私与算计。让人物依照自身逻辑行动，让故事通过行动及其后果自然展开。
+#示范(仅供参考)：
+院中，苏宁正蹲在石桌旁逗弄一只白猫。听见脚步声，她抬头看了一眼，发现是你回来了，立刻抱着猫站起身。
 
-核心叙事基调:
-去现代感与存案牍风:
+“师兄，你总算回来了！我等了你半天啦～”
 
-- 禁用一切现代科学、网络流行及商业管理词汇（如物理、数据、风险、降维、核算）
-- 将超自然现象化作极度具体的气机牵涉、五行生克、灵力损耗与阵法纹理
-冷硬:
-- 语言采用半文半白
-- 摒弃风花雪月的虚写
-- 客观陈述，杜绝所有感叹号与情绪化字眼（如悲愤、怅然、狂喜）
-环境笔法:
-- 不写无灵力参与的凡景。不堆砌空镜辞藻
-- 严禁以凡俗难民营、贫民窟、末日废土模板套用任何修仙者聚集地（坊市、营地、洞府群落、散修窝点等）
-- 脏乱由灵气稀薄来体现，不由垃圾、恶臭、污血堆砌
-- 写屋舍，写墙角阵纹磨损的痕迹、灵气溢散的走向、聚灵阵运转的嗡鸣
-- 写天象，写雨打在防窥符上的灵力波纹、雷劫前劫云凝而未落的灵压
-- 一切环境描写，皆为气机流转与人物处境的延伸
-- 禁止单独成句的纯静态景物描写。环境必须通过人物与之交互来呈现：脚踩上去、灵力探过去、神识扫过去之后的结果
-- 描摹灵气匮乏所致的物象衰败时，须写其灵性结构的内部塌缩。不得以凡俗脏污堆砌
-因果与质感:
-- 斗法不写宏大光影
-- 只写飞剑折断几寸、灵力枯竭几分、神识刺痛的程度、符箓焚毁的灰烬
-动词优先律:
-- 每句优先写人物做了什么事、器物发生了何种变化、灵力产生了何种损耗
-- 禁用形容词堆砌。将“是什么样的”全部改为“造成了什么后果/触发了什么反应”
-- 不写情绪词（如愤怒、轻蔑、嘲弄）。情绪由身体反应与动作本身呈现
-- 禁用连词串接长句（如“尚未……便”“借着……之势”）。一事一句，句号分割
-- 范例对照:
-  禁: “古旧的聚灵阵早已废弃多年，残破不堪地瘫在洞府角落”
-  宜: “指尖触上阵盘。灵石碎渣簌簌落下，阵纹断成三截。聚灵效用散尽。”
-  禁: “他怒火中烧，一拳轰在对方法器上”
-  宜: “拳骨砸上对方法器。指节裂开一道缝，血顺着器面淌下来。”
-  禁: “筑基修士临死前的反扑极为凶悍，灵压暴涨，震得四周山石崩裂”
-  宜: “他道基崩裂。灵压从气海倒冲出来，涨破了周身穴窍。碎石弹上十几丈高，又落回尘土。”
+“等我做什么？”
 
-法则与行为逻辑:
-唯利是图的决策律:
-- 人物一切行动皆为求存与夺利
-- 不为仇恨杀人，只为资源杀人
-- 若长线搜刮的收益（如留作炉鼎、搜魂夺得功法、种下禁制充当死士）高于当场斩杀，则必留活口
-藏锋律与底牌:
-- 对阵最高只出七分力
-- 叙事中必须体现人物暗中扣住的符箓、扣在袖中的阵盘，或随时准备血遁的后手
-生死权衡与劫气感知:
-- 将风险换算为具体的修仙术语
-- 绝境表现: 灵海枯竭、道基生痕、神识反噬
-- 隐患表现: 周遭X里陌生的灵压、宗门巡卫的遁光、大阵运转的晦涩波动
-- 均摊代价: 折损几件X品阶器物、消耗几枚X丹药
+“上次你答应给我带的糖糕呢？”
 
-战斗与善后纪实法:
-探查:
-- 遇敌首要动作是神识探查
-- 必须具体描写: 神识铺开XX丈/里，受某物阻滞衰减，仅能锁定制敌气机
-杀伐:
-- 动作细化至指尖掐出何种残影、灵力抽取了几成
-- 描写器物击碎对方护体灵力时的碎裂声
-清算:
-- 战后冷静摸尸，具象化战利品
-- 示例: 下品灵石若干、灵气溃散八成的飞剑一把，修复尚需耗费XX代价，遂弃之
-- 搜魂后必毁尸灭迹，化骨扬灰，随后施展遁术抹除自身气机
+你一怔，随即从储物袋里取出油纸包递给她。
 
-言辞若刀与社交博弈:
-伪装与杀机:
-- 把言语当成最低廉的暗器
-- 表面的客套寒暄、示弱求饶，必须伴随内心深处对双方距离、一击必杀概率、阵法闭合时间的精确倒数
-话术套利:
-- 交易时的讨价还价，皆是互相试探底线
-- 叙事要展现出如同凡俗商贾般锱铢必较，又带着修士视人命如草芥的漠然
-言辞实录法:
-- 对话单独成句，不加旁白夹在引号中间解释语气
-- 对话后紧跟一句写说话人的外在动作，再另起一句写其内心计算/杀机倒数
-- 三层须分明：言语一层，动作一层，内心一层
-- 范例: “道友且慢动手。”
-  他撤后半步，拱手低头。
-  袖中三枚破灵锥已扣入指缝。两丈。此距足够贯穿对方法袍前三层护罩。
-
-行为动作句式参照:
-· 禁用排比与空泛抒情
-· 禁用总结性陈述句（如“她已借激将之语扫荡开大半乱局”）。写收尾也须用动作：她收了妖元、猫尾松开、脚尖碾碎齑粉
-· 每句句号分割，一事一句。一句之内不超过两个动作
-· 范例: 他连退数步。面上浮起惧色。袖中五指暗扣一枚三阶阴雷子。神识锁住前方X丈。只待对方器物入阵，引爆此雷，血遁向东。
-
-活人感与反差塑造:
-笑面虎法则_废话掩盖杀机:
-- 核心做法: 表面和善絮叨，行为极度狠辣，嘴上说客套话，心里倒数杀招。
-- 严禁写法: 面露凶光、冷笑、大声威胁。
-- 必须写法: 面部肌肉位移替代表情，搭配隐蔽动作(如下毒/扣符)，摸尸时面部肌肉位置不变。
-
-禁OOC铁律:
-· 人物一切言行需贴合其原设之境界、道心、经历、道途，不可因套用上述法则而扭曲其根本性格。
-
-叙事收束律:
-· 每段结尾禁止以玩家角色的主动言行作结 · 系统只铺设“待玩家回应”的客观事态，不替玩家做出任何选择。提醒玩家放入预设内文风中。`;
+苏宁接过糖糕，笑着道了声谢，转眼便坐回石凳上。你摇了摇头，也没再管她，径直进屋去了。`;
 
 const ACTION_OPTIONS_PROMPT = String.raw`【剧情选项生成规则】
 
@@ -1152,7 +1106,7 @@ const ACTION_OPTIONS_PROMPT = String.raw`【剧情选项生成规则】
 </selection>`;
 
 const PREFERRED_WORLDBOOK_NAME = '《道渊》v5.4';
-const MIN_WORLD_BOOK_ENTRIES = 356;
+const MIN_WORLD_BOOK_ENTRIES = 351;
 
 // --- 界域动态人物相遇 & NPC 注入 ---
 const ENTRY_XUANTIAN_NPC = '玄天界动态人物相遇';
@@ -1278,8 +1232,8 @@ function showToast(msg) {
 
 // --- 配置检测：检查模型名称 ---
 const CONFIG_BLACKLIST = ['次','血','特','惠','福','利','鹿','量','plus','Plus','PLUS','转','官','0.','auto','AUTO','Auto','+','逆'];
-const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'together', 'x.ai', 'z.ai'];
-const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novaiapi','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu'];
+const CONFIG_URL_WHITELIST = ['siliconflow', 'openrouter', 'ark.cn-beijing.volces', 'ark.cn', 'edgefn', 'qnaigc', 'nvidia', 'baidubce', 'ananbdhdh', 'ai21', 'aimlapi', 'anthropic', 'apihub.veletis.com', 'bigmodel', 'chutes', 'cohere', 'cometapi', 'dashscope', 'deepseek', 'electronhub', 'fireworks', 'gcli.ggchan.dev', 'googleapis', 'groq', 'lingyiwanwu', 'magicv4', 'minimax', 'mistral', 'momotale', 'moonshot', 'moyii', 'nanogpt', 'novita', 'opencode', 'openai', 'api.longcat.chat', 'api.pioneer.ai', 'perplexity', 'pollinations', 'primavera64', 'stepfun', 'sukaka', 'together', 'x.ai', 'z.ai', 'nonbiri.sweet-home.io'];
+const CONFIG_URL_BLACKLIST = ['gemai','cc.cwapi.vip','sta1n','iisbo','xqiqix','chatnewai','qingjiu','lemonapi','novai','vectorengine','api.gpt.ge','sllt','beijixingxing','qinyan','jiemomo','meow61','aiopus','api-666','ekan8','nova.cervus','api.laozhang','ashesb','ai.sikong','agent.aiflow','api552','api520','wamwuai','kongyang','api.ytai.site','api.hhentaii','nvewvip.preview.tencent-zeabur','ai.ttk.homes','cwapi','api.xixixi.cloud','api.goodsupport.top','api.lrca.cn','bnwum','love.qiyu221','api.akane.win','new.xfxai.top','dianhuomao','taicu','api.leostudio.cc','aiwangyou','xindu.xyz','blacknoir','aigcbest'];
 const CONFIG_URL_BLACKLIST_PATTERNS = [/chr\d+/i];
 function isConfigUrlBlacklisted(url) {
   const value = String(url || '').toLowerCase();
@@ -1290,17 +1244,37 @@ function isConfigUrlBlacklisted(url) {
 let _mvuOutputFormatEnabled = false;
 
 function shouldWarnFlashModel(name) {
-  const model = String(name || '').toLowerCase();
-  if (/deepseek[\s_-]*v?4[\s_-]*flash\b/.test(model)) return false;
-  if (!/gemini/.test(model) || !/flash/.test(model)) return false;
-  const version = model.match(/gemini[\s_-]*(\d+)(?:[.\s_-](\d+))?/);
-  if (!version) return true;
-  const major = Number(version[1]);
-  const minor = Number(version[2] || 0);
-  return major < 3 || (major === 3 && minor === 0);
+  // 仅识别 Gemini 3 / 3.0 Flash，包括服务商前缀和 preview 等后缀。
+  return /(?:^|[^a-z0-9])gemini[\s_-]*3(?:[.\s_-]0)?[\s_-]*flash(?=$|[^a-z0-9])/i.test(String(name || ''));
+}
+
+function findRecommendedExtraModel(ids) {
+  const patterns = [
+    /(?:^|[^a-z0-9])gemini[\s_-]*3[.\s_-]8[\s_-]*(?:flash|f)(?=$|[^a-z0-9])/i,
+    /(?:^|[^a-z0-9])(?:doubao[\s_-]*)?seed[\s_-]*2[.\s_-]1[\s_-]*lite(?=$|[^a-z0-9])/i,
+    /(?:^|[^a-z0-9])glm[\s_-]*5[.\s_-]3[\s_-]*(?:flash|f)(?=$|[^a-z0-9])/i
+  ];
+  for (const pattern of patterns) {
+    const id = ids.find(value => pattern.test(value));
+    if (id) return id;
+  }
+  return '';
+}
+
+function fillExtraModelOptions(select, ids) {
+  const doc = select.ownerDocument;
+  const options = doc.createDocumentFragment();
+  for (const id of ids) {
+    const option = doc.createElement('option');
+    option.value = id;
+    option.textContent = id;
+    options.appendChild(option);
+  }
+  select.replaceChildren(options);
 }
 
 function isAutoFixableConfigIssue(issue) {
+  if (['额外模型解析非阻塞未开启', '自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
   return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek应使用V4兼容格式化输出|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
 }
 
@@ -1321,6 +1295,9 @@ function checkConfig() {
       }
       if (isExtra) {
         const em = cfg.额外模型解析配置 || {};
+        if (cfg.兼容性?.额外模型解析非阻塞 !== true) issues.push('额外模型解析非阻塞未开启');
+        if (em.启用自动请求 !== true) issues.push('自动请求未开启');
+        if (em.最小请求字数 !== 50) issues.push('最小请求字数应为50');
         if (!em.api地址 || !em.api地址.trim()) issues.push('API地址未填写');
         // MVU新版：按模型类型检测最优配置（模型名不区分大小写）
         // 规则：仅 gemini 系开随机头部；其余（deepseek 及其它）一律关闭
@@ -1656,7 +1633,8 @@ function buildCompatChecks() {
   const keys = Object.keys(compat);
   mvuCompatChecks.innerHTML = keys.map(k => {
     const checked = compat[k] ? ' checked' : '';
-    return '<label class="bp-mvu-check-row"><input type="checkbox" class="bp-mvu-compat-check" data-key="' + k + '"' + checked + '><span class="bp-mvu-check-box"></span><span>' + k + '</span></label>';
+    const label = k === '额外模型解析非阻塞' ? '额外模型解析不阻塞正文显示（实验性）' : k;
+    return '<label class="bp-mvu-check-row"><input type="checkbox" class="bp-mvu-compat-check" data-key="' + k + '"' + checked + '><span class="bp-mvu-check-box"></span><span>' + label + '</span></label>';
   }).join('');
 }
 
@@ -1692,6 +1670,7 @@ function syncMvuToForm(cfg) {
   mvuRequestMode.value = em.请求方式 || bu.请求方式 || '依次请求，失败后重试';
   mvuRequestCount.value = em.请求次数 ?? bu.请求次数 ?? 1;
   mvuAutoRequest.checked = em.启用自动请求 ?? bu.启用自动请求 ?? true;
+  mvuMinRequestLength.value = em.最小请求字数 ?? bu.最小请求字数 ?? 0;
   mvuApiUrl.value = em.api地址 || bu.api地址 || '';
   mvuApiKey.value = em.密钥 || bu.密钥 || '';
   const modelName = _curModelName;
@@ -1781,6 +1760,7 @@ function writeMvuConfig() {
   em.请求方式 = mvuRequestMode.value;
   em.请求次数 = parseInt(mvuRequestCount.value) || 1;
   em.启用自动请求 = mvuAutoRequest.checked;
+  em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
   em.api地址 = mvuApiUrl.value;
   em.密钥 = mvuApiKey.value;
   em.模型名称 = mvuModelName.value;
@@ -1824,6 +1804,7 @@ function ewcBackupToEwcYH() {
   bu.请求方式 = em.请求方式;
   bu.请求次数 = em.请求次数;
   bu.启用自动请求 = em.启用自动请求;
+  bu.最小请求字数 = em.最小请求字数;
   bu.api地址 = em.api地址;
   bu.密钥 = em.密钥;
   bu.模型名称 = em.模型名称;
@@ -1859,6 +1840,7 @@ function ewcRestoreFromEwcYH() {
   if (!em.请求方式 && bu.请求方式) em.请求方式 = bu.请求方式;
   if (em.请求次数 === undefined && bu.请求次数 !== undefined) em.请求次数 = bu.请求次数;
   if (em.启用自动请求 === undefined && bu.启用自动请求 !== undefined) em.启用自动请求 = bu.启用自动请求;
+  if (em.最小请求字数 === undefined && bu.最小请求字数 !== undefined) em.最小请求字数 = bu.最小请求字数;
   if (!em.api地址 && bu.api地址) em.api地址 = bu.api地址;
   if (!em.密钥 && bu.密钥) em.密钥 = bu.密钥;
   if (!em.模型名称 && bu.模型名称) em.模型名称 = bu.模型名称;
@@ -1996,7 +1978,13 @@ function ewcSyncMvuDom() {
 
     // 自动请求
     el = findField('自动请求');
-    if (el) setVal(el, em.启用自动请求 !== false);
+    if (el?.type === 'checkbox' && em.启用自动请求 !== undefined) {
+      setVal(el, em.启用自动请求);
+      // Vue 在下一轮微任务才挂载自动请求的条件字段。
+      await Promise.resolve();
+    }
+    el = doc.querySelector('.mvu-section input[aria-label="最小请求字数"]') || findField('最小请求字数');
+    if (el && em.最小请求字数 !== undefined) setVal(el, em.最小请求字数);
 
     // API 地址
     el = findField('API 地址');
@@ -2039,19 +2027,21 @@ function ewcSyncMvuDom() {
     if (el && em.top_k !== undefined) setVal(el, em.top_k);
 
     // 自动清理变量
-    el = findField('启用');
+    var snapEl = doc.querySelector('input[id="mvu_snapshot_keep_interval"]');
+    var cleanupSection = snapEl?.closest('.mvu-section');
+    el = cleanupSection?.querySelector('input[type="checkbox"]');
     if (el && ac.启用 !== undefined) setVal(el, !!ac.启用);
-    var snapEl = doc.getElementById('mvu_snapshot_keep_interval');
     if (snapEl && ac.快照保留间隔 !== undefined) setVal(snapEl, ac.快照保留间隔);
-    var keepEl = doc.getElementById('mvu_keep_recent_floors');
+    var keepEl = doc.querySelector('input[id="mvu_keep_recent_floors"]');
     if (keepEl && ac.要保留变量的最近楼层数 !== undefined) setVal(keepEl, ac.要保留变量的最近楼层数);
-    var restEl = doc.getElementById('mvu_restore_recent_floors');
+    var restEl = doc.querySelector('input[id="mvu_restore_recent_floors"]');
     if (restEl && ac.触发恢复变量的最近楼层数 !== undefined) setVal(restEl, ac.触发恢复变量的最近楼层数);
 
     // 兼容性
     var compatKeys = Object.keys(compat);
     for (var c = 0; c < compatKeys.length; c++) {
-      el = findField(compatKeys[c]);
+      el = findField(compatKeys[c] === '额外模型解析非阻塞'
+        ? '额外模型解析不阻塞正文显示（实验性）' : compatKeys[c]);
       if (el) setVal(el, !!compat[compatKeys[c]]);
     }
 
@@ -2081,13 +2071,16 @@ function ewcSyncMvuDom() {
 // cfg 可选：传入则在父页面写入（确保 iframe 与父页面 settings 一致）。
 // 返回 { ok: true } 表示无感成功（store 已重载）；{ ok: false } 表示需回退刷新。
 async function mvuLiveApply(cfg) {
-  const cfgJson = cfg ? JSON.stringify(cfg) : null;
+  if (!cfg) return { ok: false };
+  const cfgJson = JSON.stringify(cfg);
   return runInParent(`(async () => {
     try {
-      ${cfgJson ? 'var cfg = JSON.parse(' + JSON.stringify(cfgJson) + '); if (window.SillyTavern && window.SillyTavern.extensionSettings) window.SillyTavern.extensionSettings.mvu_settings = cfg;' : ''}
-      if (window.SillyTavern && typeof window.SillyTavern.saveSettingsDebounced === 'function') {
-        window.SillyTavern.saveSettingsDebounced();
-      }
+      var host = window.SillyTavern;
+      var context = host?.getContext?.() || host;
+      var extensionSettings = context?.extensionSettings || host?.extensionSettings;
+      if (!extensionSettings) return { ok: false };
+      var cfg = JSON.parse(${JSON.stringify(cfgJson)});
+      extensionSettings.mvu_settings = JSON.parse(${JSON.stringify(cfgJson)});
       // 找到 MVU 面板挂载点 → Vue app → Pinia store
       // 策略1：遍历全文档所有 Vue 挂载点（[data-v-app] / [script_id] / [__vue_app__]），
       // 逐个检查其 pinia 里是否含「MVU变量框架」store。
@@ -2100,8 +2093,8 @@ async function mvuLiveApply(cfg) {
         if (!candApp) continue;
         var candPinia = candApp.config && candApp.config.globalProperties && candApp.config.globalProperties.$pinia;
         var candStore = candPinia && candPinia._s && candPinia._s.get('MVU变量框架');
-        if (candStore) { store = candStore; break; }
-        if (candApp._instance && candApp._instance.setupState && candApp._instance.setupState.store && candApp._instance.setupState.store.$id === 'MVU变量框架') {
+        if (candStore && candStore.should_enable !== false) { store = candStore; break; }
+        if (candApp._instance && candApp._instance.setupState && candApp._instance.setupState.store && candApp._instance.setupState.store.$id === 'MVU变量框架' && candApp._instance.setupState.store.should_enable !== false) {
           store = candApp._instance.setupState.store; break;
         }
       }
@@ -2118,7 +2111,7 @@ async function mvuLiveApply(cfg) {
             var inst = el.__vueParentComponent;
             if (inst && inst.setupState && inst.setupState.store) {
               var s = inst.setupState.store;
-              if (s.$id === 'MVU变量框架') { store = s; break; }
+            if (s.$id === 'MVU变量框架' && s.should_enable !== false) { store = s; break; }
             }
             var kids = el.children;
             for (var k = kids.length - 1; k >= 0; k--) queue.push(kids[k]);
@@ -2126,61 +2119,62 @@ async function mvuLiveApply(cfg) {
         }
       }
       // 策略3：MVU 若显式暴露了 store 引用则直接取用
-      if (!store && window.__mvuStoreRef && window.__mvuStoreRef.value) store = window.__mvuStoreRef.value;
-      if (store) {
-        try {
-          if (typeof store._reload_settings === 'function') {
-            store._reload_settings();
-            // 校验 reload 是否真的生效（zod 解析异常会得到空 settings，此时必须回退刷新）
-            if (store.settings && cfg) {
-              var st = store.settings;
-              var emCfg = (cfg.额外模型解析配置 || {});
-              var okCheck = (st.更新方式 === cfg.更新方式) || !!(st.额外模型解析配置 && st.额外模型解析配置.模型名称 === emCfg.模型名称);
-              if (!okCheck) return { ok: false };
-            }
-          } else if (store.settings && window.SillyTavern && window.SillyTavern.extensionSettings) {
-            store.settings = window.SillyTavern.extensionSettings.mvu_settings;
-          }
-        } catch (e) {
-          return { ok: false };
-        }
-        return { ok: true };
+      var exposed = window.__mvuStoreRef?.value;
+      if (!store && exposed?.$id === 'MVU变量框架' && exposed.should_enable !== false) store = exposed;
+      if (!store || typeof store._reload_settings !== 'function') return { ok: false };
+      await store._reload_settings();
+      var st = store.settings;
+      var emCfg = cfg.额外模型解析配置 || {};
+      var compatCfg = cfg.兼容性 || {};
+      function matches(expected, actual, keys) {
+        return keys.every(function(key) { return expected[key] === undefined || actual?.[key] === expected[key]; });
       }
-      return { ok: false };
+      if (!st || st.更新方式 !== cfg.更新方式
+        || !matches(emCfg, st.额外模型解析配置, ['模型来源', '模型名称', '启用自动请求', '最小请求字数'])
+        || !matches(compatCfg, st.兼容性, ['额外模型解析非阻塞'])) return { ok: false };
+      var effective = store.effective_settings || st;
+      var overridden = effective.更新方式 !== st.更新方式
+        || !matches(emCfg, effective.额外模型解析配置, ['启用自动请求']);
+      return { ok: true, overridden: overridden };
     } catch (e) { return { ok: false }; }
-  })()`);
+  })()`, 5000);
 }
 
 // ═══════════════ 无感应用：ST-Prompt-Template 提示词模板 ═══════════════
 // 该插件在 globalThis.EjsTemplate 暴露 setFeatures(features)：
 // 会同步插件内存 settings 对象（handler 直接读取）+ extension_settings.EjsTemplate + DOM 选项，
 // 因此调用后运行逻辑立即生效，无需刷新页面。
-// features 可选：传入则用其覆盖（默认用 EJS_OPTIMAL）。
+// 应用后读回插件运行态，旧版没有公开接口时才回退刷新。
 // 返回 { ok: true } 表示无感成功；{ ok: false } 表示需回退刷新。
 async function ejsLiveApply(features) {
-  const featJson = features ? JSON.stringify(features) : null;
+  const featJson = JSON.stringify(features || EJS_OPTIMAL);
   return runInParent(`(async () => {
     try {
-      var feat = ${featJson ? 'JSON.parse(' + JSON.stringify(featJson) + ')' : 'null'};
+      var feat = JSON.parse(${JSON.stringify(featJson)});
+      var host = window.SillyTavern;
+      var context = host?.getContext?.() || host;
+      var extensionSettings = context?.extensionSettings || host?.extensionSettings;
+      var save = () => {
+        if (typeof context?.saveSettingsDebounced === 'function') context.saveSettingsDebounced();
+        else host?.saveSettingsDebounced?.();
+      };
       // 首选：EjsTemplate.setFeatures 能同步插件内存 settings（handler 直接读取）+ DOM，真正无感
       if (feat && window.EjsTemplate && typeof window.EjsTemplate.setFeatures === 'function') {
-        window.EjsTemplate.setFeatures(feat);
-        // applySettings 不主动 save，这里补一次持久化
-        if (window.SillyTavern && typeof window.SillyTavern.saveSettingsDebounced === 'function') {
-          window.SillyTavern.saveSettingsDebounced();
-        }
-        return { ok: true };
+        await window.EjsTemplate.setFeatures(feat);
+        var actual = window.EjsTemplate.getFeatures?.();
+        save();
+        return { ok: !!actual && Object.entries(feat).every(([key, value]) => actual[key] === value) };
       }
       // 兜底：直接写 extension_settings.EjsTemplate（内存对象被 handler 引用，仍需刷新才可靠）
-      if (feat && window.SillyTavern && window.SillyTavern.extensionSettings) {
-        if (!window.SillyTavern.extensionSettings.EjsTemplate) window.SillyTavern.extensionSettings.EjsTemplate = {};
-        Object.assign(window.SillyTavern.extensionSettings.EjsTemplate, feat);
-        if (typeof window.SillyTavern.saveSettingsDebounced === 'function') window.SillyTavern.saveSettingsDebounced();
+      if (extensionSettings) {
+        extensionSettings.EjsTemplate ||= {};
+        Object.assign(extensionSettings.EjsTemplate, feat);
+        save();
         return { ok: false }; // 直接改内存 extension_settings 无法保证 handler 引用同步，回退刷新
       }
       return { ok: false };
     } catch (e) { return { ok: false }; }
-  })()`);
+  })()`, 5000);
 }
 
 // ── 预设列表：从父页面 DOM 读取可用预设 ──
@@ -2284,6 +2278,11 @@ function syncMvuNativePreset(presetName) {
   })()`).catch(() => {});
 }
 
+// ── 请求截断说明 / 中转站掺水与模型伪装 ──
+// 截断名单依据维护者收集的多方反馈及复核结果整理，涵盖相关中转站地址、关键词及惯用名。
+// 拦截针对的是偷换模型、掺水路由及在用户不知情时向请求注入系统提示词等做法。
+// 挂着高规格模型的招牌，后台却调用其他模型，还让模型伪装身份，用户花的钱和得到的服务根本对不上。
+// 仓库 README 附有模型重定向与系统提示词注入的截图及中转服务选择建议。
 // ── 伪造 OpenAI 空响应（零报错，零网络请求） ──
 function makeFakeCompletion(init) {
   var isStream = true;
@@ -2322,20 +2321,88 @@ function makeFakeCompletion(init) {
 }
 
 function ewcReadRequestMeta(init) {
-  const result = { model: '', apiUrl: '' };
+  const result = { model: '', apiUrl: '', source: '' };
   try {
     if (!init || typeof init.body !== 'string' || !init.body.trim()) return result;
     const body = JSON.parse(init.body);
-    const modelKeys = ['model', 'chat_completion_model', 'custom_model', 'openai_model', 'claude_model'];
-    const urlKeys = ['reverse_proxy', 'server_url', 'custom_url', 'api_url', 'base_url'];
-    for (const key of modelKeys) {
-      if (typeof body?.[key] === 'string' && body[key].trim()) { result.model = body[key].trim(); break; }
+    const readText = key => typeof body?.[key] === 'string' ? body[key].trim() : '';
+    const source = String(body?.chat_completion_source || body?.source || body?.api_type || '').trim().toLowerCase();
+    result.source = source;
+    const sourceModelKeys = {
+      claude: 'claude_model', openai: 'openai_model', makersuite: 'google_model',
+      google: 'google_model', vertexai: 'vertexai_model', openrouter: 'openrouter_model',
+      ai21: 'ai21_model', mistralai: 'mistralai_model', custom: 'custom_model',
+      cohere: 'cohere_model', perplexity: 'perplexity_model', groq: 'groq_model',
+      siliconflow: 'siliconflow_model', electronhub: 'electronhub_model', chutes: 'chutes_model',
+      nanogpt: 'nanogpt_model', deepseek: 'deepseek_model', aimlapi: 'aimlapi_model',
+      xai: 'xai_model', pollinations: 'pollinations_model', cometapi: 'cometapi_model',
+      moonshot: 'moonshot_model', fireworks: 'fireworks_model', azure_openai: 'azure_openai_model',
+      zai: 'zai_model'
+    };
+    result.model = readText('model');
+    if (!result.model && sourceModelKeys[source]) result.model = readText(sourceModelKeys[source]);
+    if (!result.model) result.model = readText('chat_completion_model');
+    if (!result.model && !source) {
+      const candidates = [...new Set(Object.values(sourceModelKeys).map(readText).filter(Boolean))];
+      if (candidates.length === 1) result.model = candidates[0];
     }
-    for (const key of urlKeys) {
-      if (typeof body?.[key] === 'string' && body[key].trim()) { result.apiUrl = body[key].trim(); break; }
+    const sourceUrlKeys = source === 'custom'
+      ? ['reverse_proxy', 'custom_url', 'server_url', 'api_url', 'base_url']
+      : ['reverse_proxy', 'server_url', 'api_url', 'base_url'];
+    for (const key of sourceUrlKeys) {
+      const value = readText(key);
+      if (value) { result.apiUrl = value; break; }
+    }
+    if (!result.apiUrl && !source) {
+      const candidates = [...new Set(['reverse_proxy', 'custom_url', 'server_url', 'api_url', 'base_url'].map(readText).filter(Boolean))];
+      if (candidates.length === 1) result.apiUrl = candidates[0];
     }
   } catch (e) {}
   return result;
+}
+
+// 中转服务风险提示：部分第三方中转可能存在模型重定向、路由不透明或额外系统提示词注入等问题。
+// 建议能够查看 GitHub 源码的使用者主动核验路由、模型标识和服务说明，不要仅依赖显示名称判断实际模型。
+// 截图见仓库 docs/screenshots/；仅用于展示风险形式，不代表已独立证实某个具体服务存在上述行为。
+
+// 仅匹配当前正文正在使用的模型与API；独立插件的自定义请求不参与截断。
+function ewcNormalizeApiEndpoint(url) {
+  const raw=String(url||"").trim().toLowerCase();
+  if(!/^https?:\/\//.test(raw)) return "";
+  return raw.split(/[?#]/,1)[0].replace(/\/+$/,"").replace(/\/v1(?:beta)?(?:\/chat\/completions)?$/,"");
+}
+function ewcGetActiveMainApiEndpoint(){
+  const settings=SillyTavern.chatCompletionSettings||{};
+  const source=String(settings.chat_completion_source||"").trim().toLowerCase();
+  const keys=source==="custom"?["custom_url","reverse_proxy","server_url","api_url","base_url"]:["reverse_proxy","server_url","api_url","base_url"];
+  for(const key of keys) if(typeof settings[key]==="string" && /^https?:\/\//i.test(settings[key].trim())) return settings[key];
+  const cm=SillyTavern.extensionSettings?.connectionManager;
+  if(cm?.selectedProfile && Array.isArray(cm.profiles)){
+    const selected=cm.profiles.find(item=>item.id===cm.selectedProfile);
+    const url=selected?.["api-url"];
+    if(typeof url==="string"&&/^https?:\/\//i.test(url.trim())) return url;
+  }
+  return SOURCE_URL[source]||"";
+}
+function ewcIsActiveMainGeneration(meta) {
+  const settings=SillyTavern.chatCompletionSettings||{};
+  const requestModel=String(meta?.model||"").trim().toLowerCase();
+  let activeModel="";
+  try{activeModel=String(SillyTavern.getChatCompletionModel?.()||"").trim().toLowerCase()}catch(_){}
+  if(!activeModel){
+    const modelFields={claude:"claude_model",openai:"openai_model",makersuite:"google_model",google:"google_model",vertexai:"vertexai_model",openrouter:"openrouter_model",ai21:"ai21_model",mistralai:"mistralai_model",custom:"custom_model",cohere:"cohere_model",perplexity:"perplexity_model",groq:"groq_model",siliconflow:"siliconflow_model",electronhub:"electronhub_model",chutes:"chutes_model",nanogpt:"nanogpt_model",deepseek:"deepseek_model",aimlapi:"aimlapi_model",xai:"xai_model",pollinations:"pollinations_model",cometapi:"cometapi_model",moonshot:"moonshot_model",fireworks:"fireworks_model",azure_openai:"azure_openai_model",zai:"zai_model"};
+    const field=modelFields[String(settings.chat_completion_source||"").toLowerCase()];
+    activeModel=String((field&&settings[field])||settings.model||settings.custom_model||"").trim().toLowerCase();
+  }
+  if(!requestModel||!activeModel||requestModel!==activeModel)return false;
+  const source=String(settings.chat_completion_source||"").trim().toLowerCase();
+  if(meta?.source&&source&&String(meta.source).trim().toLowerCase()!==source)return false;
+  const requestUrl=ewcNormalizeApiEndpoint(meta?.apiUrl);
+  if(requestUrl){
+    const activeUrl=ewcNormalizeApiEndpoint(ewcGetActiveMainApiEndpoint());
+    if(!activeUrl||requestUrl!==activeUrl)return false;
+  }
+  return true;
 }
 
 function ewcRequestBlockReason(requestMeta) {
@@ -2361,11 +2428,15 @@ function ewcInjectFetchHook() {
   const fetchHook = function(input, init) {
     try {
       const url = typeof input === 'string' ? input : (input?.url || '');
-      const isChatReq = url.includes('/api/backends/chat-completions/') || url.includes('/api/connections/generate');
-      if (!isChatReq) return originalFetch(input, init);
+      const path = String(url || '').split(/[?#]/, 1)[0].replace(/\/+$/, '');
+      const isGenerate = /(?:^|\/)api\/backends\/chat-completions\/generate$/.test(path)
+        || /(?:^|\/)api\/connections\/generate$/.test(path);
+      // 模型列表/status及其他插件接口始终放行。
+      if (!isGenerate) return originalFetch(input, init);
 
       const requestMeta = ewcReadRequestMeta(init);
-      return ewcRequestBlockReason(requestMeta) ? makeFakeCompletion(init) : originalFetch(input, init);
+      return ewcIsActiveMainGeneration(requestMeta) && ewcRequestBlockReason(requestMeta)
+        ? makeFakeCompletion(init) : originalFetch(input, init);
     } catch(e) {}
     return originalFetch(input, init);
   };
@@ -2426,9 +2497,10 @@ async function fetchModels() {
   mvuFetchModelsBtn.textContent = '获取中...';
   try {
     var result = await _doFetchModels(baseUrl, mvuApiKey.value || '');
-    mvuModelName.innerHTML = result.ids.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
-    mvuModelName.value = result.ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : result.ids[0];
-    showToast('已获取 ' + result.ids.length + ' 个模型');
+    fillExtraModelOptions(mvuModelName, result.ids);
+    const recommended = findRecommendedExtraModel(result.ids);
+    mvuModelName.value = recommended || result.ids[0] || '';
+    showToast('已获取 ' + result.ids.length + ' 个模型' + (recommended ? '，已选推荐模型' : ''));
     updateBackendCode();
   } catch (e) {
     showToast('获取模型失败: ' + e.message);
@@ -2450,9 +2522,10 @@ async function fetchModelsInDialog() {
   dlgFetch.textContent = '获取中...';
   try {
     var result = await _doFetchModels(baseUrl, dlgKey ? dlgKey.value : '');
-    dlgModel.innerHTML = result.ids.map(function(id) { return '<option value="' + id + '">' + id + '</option>'; }).join('');
-    dlgModel.value = result.ids.includes('gemini-2.5-pro') ? 'gemini-2.5-pro' : (result.ids.includes('gemini-3.1-pro') ? 'gemini-3.1-pro' : (result.ids.includes('gemini-3.5-flash') ? 'gemini-3.5-flash' : result.ids[0]));
-    showToast('已获取 ' + result.ids.length + ' 个模型，已选推荐模型');
+    fillExtraModelOptions(dlgModel, result.ids);
+    const recommended = findRecommendedExtraModel(result.ids);
+    dlgModel.value = recommended || result.ids[0] || '';
+    showToast('已获取 ' + result.ids.length + ' 个模型' + (recommended ? '，已选推荐模型' : ''));
     updateBackendCode();
   } catch (e) {
     showToast('获取模型失败: ' + e.message);
@@ -2472,13 +2545,15 @@ function onMvuFieldChange() {
   _mvuSaveTimer = setTimeout(() => saveMvuConfig(), 600);
 }
 
+// ST-Prompt-Template 的默认设置（src/modules/ui.ts）。
 const EJS_OPTIMAL = {
   enabled: true, generate_enabled: true, generate_loader_enabled: true,
   render_enabled: true, render_loader_enabled: true, with_context_disabled: false,
   debug_enabled: false, autosave_enabled: false, preload_worldinfo_enabled: true,
-  code_blocks_enabled: true, raw_message_evaluation_enabled: true, filter_message_enabled: true,
+  code_blocks_enabled: false, raw_message_evaluation_enabled: true, filter_message_enabled: true,
   inject_loader_enabled: false, invert_enabled: true, depth_limit: -1,
-  compile_workers: false, sandbox: false
+  compile_workers: false, sandbox: false, code_editor: false, preload_only: true,
+  cache_enabled: 0, cache_size: 64, cache_hasher: 'h32ToString'
 };
 function checkEjsTemplate() {
   try {
@@ -2559,6 +2634,9 @@ function refreshMvuConfigStatus() {
     if (!notifOk) warnRows.push({ label: '四项通知未全开', val: false });
     if (isExtra) {
       if (!hasApi) warnRows.push({ label: 'API地址未填写', val: false });
+      if (cfg.兼容性?.额外模型解析非阻塞 !== true) warnRows.push({ label: '额外模型解析非阻塞未开启', val: false });
+      if (em.启用自动请求 !== true) warnRows.push({ label: '自动请求未开启', val: false });
+      if (em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
       if (_hasModel && !_rndOk) warnRows.push({ label: '随机头部' + _rndTag, val: false });
       if (_hasModel && !_fmtOk) warnRows.push({ label: '应答格式 应为 ' + (_isDS ? '格式化输出(v4兼容)' : '聊天消息'), val: false });
       if (_hasModel && !_topOk) warnRows.push({ label: 'top_p 应为 0.95', val: false });
@@ -2602,6 +2680,7 @@ async function applyOptimalMvuConfig() {
     em.请求方式 = '依次请求，失败后重试';
     em.请求次数 = 1;
     em.启用自动请求 = true;
+    em.最小请求字数 = 50;
     em.最大回复token数 = 65535;
     em.温度 = 1;
     em.频率惩罚 = 0;
@@ -2630,7 +2709,9 @@ async function applyOptimalMvuConfig() {
     cfg.兼容性 = cfg.兼容性 || {};
     cfg.兼容性['更新到聊天变量'] = true;
     cfg.兼容性['显示老旧功能'] = false;
-    cfg.兼容性['sandas不视为user消息'] = false;
+    cfg.兼容性['额外模型解析非阻塞'] = true;
+    cfg.兼容性['sendas不视为user消息'] = false;
+    delete cfg.兼容性['sandas不视为user消息'];
 
     cfg.额外模型解析配置 = cfg.额外模型解析配置 || {};
     cfg.额外模型解析配置.模型来源 = '自定义';
@@ -2655,6 +2736,12 @@ async function applyOptimalMvuConfig() {
 
     // ── 无感应用：尝试直接重载 MVU Pinia store，成功则不刷新页面 ──
     const live = await mvuLiveApply(cfg).catch(() => ({ ok: false }));
+    if (live?.ok && live.overridden) {
+      mvuStatus.textContent = '全局最优配置已应用；当前角色卡覆盖了更新方式或自动请求';
+      showToast(mvuStatus.textContent);
+      checkConfig();
+      return;
+    }
     if (live && live.ok) {
       mvuStatus.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;">额外模型解析</span><span style="font-size:10px;color:#6a8098;">独立模型解析变量</span></div>' +
         '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">' + (_isDeepSeek ? 'DeepSeek · 关随机头部 · V4兼容 · top_p 0.95' : (_isGemini ? 'Gemini · 开随机头部 · 聊天消息' : '配置最优')) + '</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
@@ -2693,7 +2780,8 @@ async function applySuiAIMvuConfig() {
     cfg.兼容性 = cfg.兼容性 || {};
     cfg.兼容性['更新到聊天变量'] = true;
     cfg.兼容性['显示老旧功能'] = false;
-    cfg.兼容性['sandas不视为user消息'] = false;
+    cfg.兼容性['sendas不视为user消息'] = false;
+    delete cfg.兼容性['sandas不视为user消息'];
     ewcBackupToEwcYH();
     await saveSettings();
     // 开启世界书条目
@@ -3344,7 +3432,7 @@ async function refreshStatus() {
     let combatAudit = await ensureCombatAuditDefault(entries, wbName);
     syncCombatAuditUI(combatAudit);
 
-    // 条目数检测：至少356条；多于356条不报错。DB条目不计入剧情条目。
+    // 条目数检测：低于最低条目数才提示。DB条目不计入剧情条目。
     const countEntries = entries.filter(e => !e.name.includes('DB'));
     let countColor, countHint;
     if (countEntries.length >= MIN_WORLD_BOOK_ENTRIES) {
@@ -3676,65 +3764,109 @@ async function refreshModeStatus() {
 wbSelect.addEventListener('change', () => { refreshStatus(); refreshModeStatus(); });
 refreshBtn.addEventListener('click', async () => { checkConfig(); refreshMvuConfigStatus(); await refreshWorldbookList(); checkEjsTemplate(); showToast('已刷新'); });
 
+async function fetchDaoyuanUpdate(fetcher = fetch) {
+  async function read(url, parse) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetcher(url, { cache: 'no-store', credentials: 'omit', signal: controller.signal });
+      if (!response.ok) throw new Error('HTTP ' + response.status + '（' + new URL(url).hostname + '）');
+      return await parse(response);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  const nonce = Date.now() + '_' + Math.random().toString(36).slice(2);
+  const ref = await read('https://api.github.com/repos/NLKASHEI/114514/git/ref/heads/main?daoyuan=' + nonce, response => response.json());
+  const sha = ref?.object?.sha;
+  if (ref?.ref !== 'refs/heads/main' || ref.object.type !== 'commit' || !/^[a-f0-9]{40}$/.test(sha || '')) {
+    throw new Error('GitHub 未返回有效的 main 提交');
+  }
+  const url = DAOYUAN_CDN_URL.replace('@main/', '@' + sha + '/');
+  const source = await read(url, response => response.text());
+  const version = source.match(/DAOYUAN_RELEASE:(\d+\.\d+\.\d+)(?![\d.])/)?.[1];
+  if (!version || !source.includes('bp-switch-panel') || /^\s*</.test(source)) {
+    throw new Error('该提交的最小化文件没有有效的小助手版本标记');
+  }
+  const current = DAOYUAN_VERSION.split('.').map(Number);
+  const next = version.split('.').map(Number);
+  const firstDifferent = next.findIndex((value, i) => value !== current[i]);
+  if (firstDifferent >= 0 && next[firstDifferent] < current[firstDifferent]) {
+    throw new Error('远端版本低于当前版本，未更新');
+  }
+  return { version, loader: '// 道渊配置小助手 v' + version + ' · main ' + sha + '\nawait import(' + JSON.stringify(url) + ');' };
+}
+
+function findDaoyuanScript(trees, ownId) {
+  const matches = [];
+  function walk(nodes) {
+    for (const node of nodes) {
+      if (node.type === 'folder') walk(node.scripts || []);
+      else if (node.type === 'script' && (ownId ? node.id === ownId :
+        node.name === '道渊配置小助手' || /114514@[^\s'"\x60]+\/道渊配置小助手(?:\.min)?\.js/.test(node.content || ''))) {
+        matches.push(node);
+      }
+    }
+  }
+  walk(trees);
+  if (matches.length !== 1) throw new Error('无法唯一定位当前角色卡中的道渊小助手脚本');
+  return matches[0];
+}
+
 p.document.getElementById('bp-switch-reload').addEventListener('click', async (event) => {
   const button = event.currentTarget;
   if (button.disabled) return;
   button.disabled = true;
   button.textContent = '拉取中';
+  let scheduled = false;
   try {
-    const trees = await api_getScriptTrees();
-    const matches = [];
-    const ownId = typeof getScriptId === 'function' ? getScriptId() : null;
-    const walk = nodes => nodes.forEach(node => {
-      if (node.type === 'folder') walk(node.scripts || []);
-      else if (node.type === 'script' && (ownId ? node.id === ownId :
-        node.name === '道渊配置小助手' || /114514@[^\s'"`]+\/道渊配置小助手(?:\.min)?\.js/.test(node.content || ''))) matches.push(node);
-    });
-    walk(trees);
-    if (matches.length !== 1) throw new Error('无法唯一定位当前小助手脚本，请在角色脚本中使用文件顶部的 @main 导入代码');
-    // Cache Storage 仅删除本小助手 CDN 请求；HTTP 缓存通过 no-store 和新 URL 绕过。
-    try {
-      if (p.caches) for (const key of await p.caches.keys()) {
-        const cache = await p.caches.open(key);
-        for (const request of await cache.keys()) {
-          const url = decodeURI(request.url);
-          if (/^https:\/\/[^/]*jsdelivr\.net\/gh\/NLKASHEI\/114514@[^/]+\/道渊配置小助手(?:\.min)?\.js(?:\?|$)/.test(url)) await cache.delete(request);
-        }
-      }
-    } catch (error) { console.warn('[道渊] 缓存不可访问，将直接绕过缓存重新拉取', error); }
-    const url = DAOYUAN_CDN_URL + '?t=' + Date.now();
-    const response = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(30000) });
-    if (!response.ok) throw new Error('CDN 返回 HTTP ' + response.status);
-    const source = await response.text();
-    if (!source.includes('bp-switch-panel') || /^\s*</.test(source)) throw new Error('CDN 返回的内容不是小助手脚本');
-    const loader = 'await import(' + JSON.stringify(DAOYUAN_CDN_URL + '?t=') + ' + Date.now());';
-    // 修改自身会销毁 iframe，因此保存与刷新都交由父页面完成。
+    let ownId;
+    try { if (typeof getScriptId === 'function') ownId = getScriptId(); } catch (_) {}
+    const characterId = SillyTavern.getContext?.()?.characterId ?? SillyTavern.characterId ?? null;
+    const script = findDaoyuanScript(await api_getScriptTrees(), ownId);
+    const release = await fetchDaoyuanUpdate();
+    if (script.content === release.loader) {
+      showToast('已是 main 最新提交（v' + release.version + '）');
+      return;
+    }
+    // 酒馆助手会监听 content 变化并重建 iframe；不要整页刷新打断角色卡保存。
+    // 更新交给父页面，且只修改仍与检查时一致的脚本。
     await runInParent(`(() => {
+      const update = ${JSON.stringify({ id: script.id, previous: script.content, loader: release.loader, characterId })};
+      const find = ${findDaoyuanScript.toString()};
+      const originalButton = document.getElementById('bp-switch-reload');
       setTimeout(async () => {
         try {
+          const context = window.SillyTavern?.getContext?.();
+          const currentCharacter = context?.characterId ?? window.SillyTavern?.characterId ?? null;
+          if (update.characterId !== null && update.characterId !== currentCharacter) {
+            throw new Error('当前角色已变化，请重新检查更新');
+          }
           await TavernHelper.updateScriptTreesWith(trees => {
-            let found = false;
-            function walk(nodes) { for (const node of nodes) {
-              if (node.type === 'folder') walk(node.scripts || []);
-              else if (node.id === ${JSON.stringify(matches[0].id)}) { node.content = ${JSON.stringify(loader)}; found = true; }
-            } }
-            walk(trees);
-            if (!found) throw new Error('当前角色已变化，请重新打开小助手');
+            const node = find(trees, update.id);
+            if (node.content !== update.previous) throw new Error('脚本内容已变化，请重新检查更新');
+            node.content = update.loader;
             return trees;
           }, { type: 'character' });
-          location.reload();
+          setTimeout(() => {
+            if (originalButton && document.getElementById('bp-switch-reload') === originalButton) {
+              originalButton.disabled = false;
+              originalButton.textContent = '检查更新';
+              alert('更新入口已写入。酒馆助手未自动重载脚本，请在角色脚本面板重载该脚本。');
+            }
+          }, 8000);
         } catch (error) {
-          const button = document.getElementById('bp-switch-reload');
-          if (button) { button.disabled = false; button.textContent = '重载'; }
-          alert('小助手重载失败：' + (error.message || error));
+          if (originalButton) { originalButton.disabled = false; originalButton.textContent = '检查更新'; }
+          alert('小助手更新失败：' + (error.message || error));
         }
-      }, 100);
+      }, 0);
       return true;
-    })()`);
+    })()`, 5000);
+    scheduled = true;
   } catch (error) {
-    button.disabled = false;
-    button.textContent = '重载';
-    showToast('重载失败：' + (error.message || error));
+    showToast('更新失败：' + (error.message || error));
+  } finally {
+    if (!scheduled) { button.disabled = false; button.textContent = '检查更新'; }
   }
 });
 
@@ -3851,6 +3983,7 @@ mvuPresetName.addEventListener('change', () => {
 mvuRequestMode.addEventListener('change', onMvuFieldChange);
 mvuRequestCount.addEventListener('input', onMvuFieldChange);
 mvuAutoRequest.addEventListener('change', onMvuFieldChange);
+mvuMinRequestLength.addEventListener('change', onMvuFieldChange);
 mvuApiUrl.addEventListener('input', onMvuFieldChange);
 mvuApiKey.addEventListener('input', onMvuFieldChange);
 mvuFetchModelsBtn.addEventListener('click', fetchModels);
@@ -3967,6 +4100,7 @@ mvuOptimizeBtn.addEventListener('click', () => {
       <div class="bp-dlg-mode-card" id="bp-dlg-extra-card" style="${cardStyle}" data-mode="extra">
         额外模型解析
         <div style="${hintGold}">推荐首选 · 效果最优</div>
+        <div style="${hintGray}">推荐 ${EXTRA_MODEL_RECOMMENDATION} 级别的模型</div>
         <div style="font-size:10px;color:#6a8098;margin-top:4px;line-height:1.4;">记得关闭预设中的<br>变量更新提醒</div>
       </div>
       <div class="bp-dlg-mode-card" id="bp-dlg-sui-card" style="${cardStyle}" data-mode="sui">
@@ -4003,7 +4137,7 @@ mvuOptimizeBtn.addEventListener('click', () => {
       // extra: 检查API
       const apiUrlEmpty = !mvuApiUrl.value.trim();
       const apiKeyEmpty = !mvuApiKey.value.trim();
-      if (apiUrlEmpty || apiKeyEmpty) {
+      if (apiUrlEmpty || apiKeyEmpty || !mvuModelName.value) {
         bpConfirmMsg.innerHTML = '<span style="color:#D4AF37;">额外模型解析</span> · 请配置API';
         bpConfirmBody.innerHTML = `
           <div class="bp-mvu-row">
@@ -4033,7 +4167,7 @@ mvuOptimizeBtn.addEventListener('click', () => {
           if (dlgFetch) dlgFetch.addEventListener('click', fetchModelsInDialog);
         }, 0);
         bpConfirmOk.textContent = '已选好，执行配置';
-        let _dlgFlashConfirmed = false; // 仅 flash 需二次确认，避免确认循环
+        let confirmedFlashModel = '';
         bpConfirmOk.onclick = () => {
           const dlgUrl = p.document.getElementById('bp-dlg-api-url');
           const dlgKey = p.document.getElementById('bp-dlg-api-key');
@@ -4041,21 +4175,17 @@ mvuOptimizeBtn.addEventListener('click', () => {
           if (!dlgUrl || !dlgUrl.value.trim()) { showToast('请填写API地址'); return; }
           if (!dlgModel || !dlgModel.value) { showToast('请获取并选择模型'); return; }
           const modelName = (dlgModel.value || '').toLowerCase();
-          // Gemini 3及以下 Flash 提示更换；更高版本及非 Gemini 模型不提示。
-          // deepseek / gemini 其它模型直接执行，不再二次确认
-          const isGemini = /gemini/.test(modelName);
+          // 仅 Gemini 3 Flash 需要二次确认。
           const isFlash = shouldWarnFlashModel(modelName);
-          if (isFlash && !_dlgFlashConfirmed) {
-            _dlgFlashConfirmed = true;
-            bpConfirmMsg.textContent = '检测到Gemini 3及以下flash模型，建议换为Gemini 3.5及以上flash，或Deepseek V4 flash，或doubao2.0lite/2.1turbo等模型。是否确认使用？';
+          if (isFlash && confirmedFlashModel !== dlgModel.value) {
+            confirmedFlashModel = dlgModel.value;
+            bpConfirmMsg.textContent = '检测到 Gemini 3 Flash。建议使用 ' + EXTRA_MODEL_RECOMMENDATION + ' 级别的模型。是否确认使用？';
             bpConfirmOk.textContent = '确认使用Flash';
             return;
           }
           mvuApiUrl.value = dlgUrl.value;
           mvuApiKey.value = dlgKey ? dlgKey.value : '';
-          if (dlgModel.options.length > 1) {
-            mvuModelName.innerHTML = [...dlgModel.options].map(o => '<option value="' + o.value + '">' + o.textContent + '</option>').join('');
-          }
+          fillExtraModelOptions(mvuModelName, [...dlgModel.options].map(o => o.value));
           mvuModelName.value = dlgModel.value;
           bpConfirmOverlay.style.display = 'none';
           bpConfirmBody.style.display = 'none';
@@ -4063,10 +4193,20 @@ mvuOptimizeBtn.addEventListener('click', () => {
           applyOptimalMvuConfig();
         };
       } else {
-        bpConfirmOverlay.style.display = 'none';
-        bpConfirmBody.style.display = 'none';
-        bpConfirmOk.textContent = '确认';
-        applyOptimalMvuConfig();
+        const apply = () => {
+          bpConfirmOverlay.style.display = 'none';
+          bpConfirmBody.style.display = 'none';
+          bpConfirmOk.textContent = '确认';
+          applyOptimalMvuConfig();
+        };
+        if (shouldWarnFlashModel(mvuModelName.value)) {
+          bpConfirmBody.style.display = 'none';
+          bpConfirmMsg.textContent = '检测到 Gemini 3 Flash。建议使用 ' + EXTRA_MODEL_RECOMMENDATION + ' 级别的模型。是否确认应用？';
+          bpConfirmOk.textContent = '确认使用Flash';
+          bpConfirmOk.onclick = apply;
+          return;
+        }
+        apply();
       }
     };
   }, 0);
@@ -4103,6 +4243,7 @@ async function applyMvuConfigFromForm() {
     em.请求方式 = mvuRequestMode.value;
     em.请求次数 = parseInt(mvuRequestCount.value) || 1;
     em.启用自动请求 = mvuAutoRequest.checked;
+    em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
     em.api地址 = mvuApiUrl.value;
     em.密钥 = mvuApiKey.value;
     em.模型名称 = mvuModelName.value;
@@ -4164,7 +4305,7 @@ mvuApplyBtn.addEventListener('click', async () => {
   const isFlash = shouldWarnFlashModel(modelName);
 
   if (isFlash) {
-    bpConfirmMsg.textContent = '检测到Gemini 3及以下flash模型，建议换为Gemini 3.5及以上flash，或Deepseek V4 flash，或doubao2.0lite/2.1turbo等模型。是否确认应用？';
+    bpConfirmMsg.textContent = '检测到 Gemini 3 Flash。建议使用 ' + EXTRA_MODEL_RECOMMENDATION + ' 级别的模型。是否确认应用？';
     bpConfirmOk.onclick = async () => {
       bpConfirmOverlay.style.display = 'none';
       await applyMvuConfigFromForm();
