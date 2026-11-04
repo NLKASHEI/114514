@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.1';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.1';
+const DAOYUAN_VERSION = '1.4.2';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.2';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -2321,12 +2321,13 @@ function makeFakeCompletion(init) {
 }
 
 function ewcReadRequestMeta(init) {
-  const result = { model: '', apiUrl: '' };
+  const result = { model: '', apiUrl: '', source: '' };
   try {
     if (!init || typeof init.body !== 'string' || !init.body.trim()) return result;
     const body = JSON.parse(init.body);
     const readText = key => typeof body?.[key] === 'string' ? body[key].trim() : '';
     const source = String(body?.chat_completion_source || body?.source || body?.api_type || '').trim().toLowerCase();
+    result.source = source;
     const sourceModelKeys = {
       claude: 'claude_model', openai: 'openai_model', makersuite: 'google_model',
       google: 'google_model', vertexai: 'vertexai_model', openrouter: 'openrouter_model',
@@ -2363,6 +2364,47 @@ function ewcReadRequestMeta(init) {
 // 中转服务风险提示：部分第三方中转可能存在模型重定向、路由不透明或额外系统提示词注入等问题。
 // 建议能够查看 GitHub 源码的使用者主动核验路由、模型标识和服务说明，不要仅依赖显示名称判断实际模型。
 // 截图见仓库 docs/screenshots/；仅用于展示风险形式，不代表已独立证实某个具体服务存在上述行为。
+
+// 仅匹配当前正文正在使用的模型与API；独立插件的自定义请求不参与截断。
+function ewcNormalizeApiEndpoint(url) {
+  const raw=String(url||"").trim().toLowerCase();
+  if(!/^https?:\/\//.test(raw)) return "";
+  return raw.split(/[?#]/,1)[0].replace(/\/+$/,"").replace(/\/v1(?:beta)?(?:\/chat\/completions)?$/,"");
+}
+function ewcGetActiveMainApiEndpoint(){
+  const settings=SillyTavern.chatCompletionSettings||{};
+  const source=String(settings.chat_completion_source||"").trim().toLowerCase();
+  const keys=source==="custom"?["custom_url","reverse_proxy","server_url","api_url","base_url"]:["reverse_proxy","server_url","api_url","base_url"];
+  for(const key of keys) if(typeof settings[key]==="string" && /^https?:\/\//i.test(settings[key].trim())) return settings[key];
+  const cm=SillyTavern.extensionSettings?.connectionManager;
+  if(cm?.selectedProfile && Array.isArray(cm.profiles)){
+    const selected=cm.profiles.find(item=>item.id===cm.selectedProfile);
+    const url=selected?.["api-url"];
+    if(typeof url==="string"&&/^https?:\/\//i.test(url.trim())) return url;
+  }
+  return SOURCE_URL[source]||"";
+}
+function ewcIsActiveMainGeneration(meta) {
+  const settings=SillyTavern.chatCompletionSettings||{};
+  const requestModel=String(meta?.model||"").trim().toLowerCase();
+  let activeModel="";
+  try{activeModel=String(SillyTavern.getChatCompletionModel?.()||"").trim().toLowerCase()}catch(_){}
+  if(!activeModel){
+    const modelFields={claude:"claude_model",openai:"openai_model",makersuite:"google_model",google:"google_model",vertexai:"vertexai_model",openrouter:"openrouter_model",ai21:"ai21_model",mistralai:"mistralai_model",custom:"custom_model",cohere:"cohere_model",perplexity:"perplexity_model",groq:"groq_model",siliconflow:"siliconflow_model",electronhub:"electronhub_model",chutes:"chutes_model",nanogpt:"nanogpt_model",deepseek:"deepseek_model",aimlapi:"aimlapi_model",xai:"xai_model",pollinations:"pollinations_model",cometapi:"cometapi_model",moonshot:"moonshot_model",fireworks:"fireworks_model",azure_openai:"azure_openai_model",zai:"zai_model"};
+    const field=modelFields[String(settings.chat_completion_source||"").toLowerCase()];
+    activeModel=String((field&&settings[field])||settings.model||settings.custom_model||"").trim().toLowerCase();
+  }
+  if(!requestModel||!activeModel||requestModel!==activeModel)return false;
+  const source=String(settings.chat_completion_source||"").trim().toLowerCase();
+  if(meta?.source&&source&&String(meta.source).trim().toLowerCase()!==source)return false;
+  const requestUrl=ewcNormalizeApiEndpoint(meta?.apiUrl);
+  if(requestUrl){
+    const activeUrl=ewcNormalizeApiEndpoint(ewcGetActiveMainApiEndpoint());
+    if(!activeUrl||requestUrl!==activeUrl)return false;
+  }
+  return true;
+}
+
 function ewcRequestBlockReason(requestMeta) {
   // 只检查这一次请求体明确携带的目标URL。不得回退扫描酒馆设置、
   // Connection Manager配置或历史保存的API，否则未启用连接也会误判。
@@ -2386,11 +2428,15 @@ function ewcInjectFetchHook() {
   const fetchHook = function(input, init) {
     try {
       const url = typeof input === 'string' ? input : (input?.url || '');
-      const isChatReq = url.includes('/api/backends/chat-completions/') || url.includes('/api/connections/generate');
-      if (!isChatReq) return originalFetch(input, init);
+      const path = String(url || '').split(/[?#]/, 1)[0].replace(/\/+$/, '');
+      const isGenerate = /(?:^|\/)api\/backends\/chat-completions\/generate$/.test(path)
+        || /(?:^|\/)api\/connections\/generate$/.test(path);
+      // 模型列表/status及其他插件接口始终放行。
+      if (!isGenerate) return originalFetch(input, init);
 
       const requestMeta = ewcReadRequestMeta(init);
-      return ewcRequestBlockReason(requestMeta) ? makeFakeCompletion(init) : originalFetch(input, init);
+      return ewcIsActiveMainGeneration(requestMeta) && ewcRequestBlockReason(requestMeta)
+        ? makeFakeCompletion(init) : originalFetch(input, init);
     } catch(e) {}
     return originalFetch(input, init);
   };
