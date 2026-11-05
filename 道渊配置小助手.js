@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.3';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.3';
+const DAOYUAN_VERSION = '1.4.4';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.4';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -3858,6 +3858,19 @@ async function fetchDaoyuanUpdate(fetcher = fetch) {
   return { version, loader: '// 道渊配置小助手 v' + version + ' · main ' + sha + '\nawait import(' + JSON.stringify(url) + ');' };
 }
 
+// 脚本 ID 只标识宿主，不能证明宿主是独立加载器。整段内容必须匹配已知导入格式。
+function isDaoyuanStandaloneLoader(content) {
+  if (typeof content !== 'string') return false;
+  const match = content.match(/^\s*(?:\/\/[^\r\n]*(?:\r?\n|$)\s*)*await\s+import\(\s*(['"])(https:\/\/[^'"\s]+)\1\s*(?:\+\s*Date\.now\(\s*\)\s*)?\)\s*;?\s*$/);
+  if (!match) return false;
+  try {
+    const url = new URL(match[2]);
+    return ['https://cdn.jsdelivr.net', 'https://testingcf.jsdelivr.net'].includes(url.origin)
+      && !url.username && !url.password
+      && /^\/gh\/NLKASHEI\/114514@(?:main|master|[a-f0-9]{40}|v\d+\.\d+\.\d+)\/道渊配置小助手(?:\.min)?\.js$/.test(decodeURIComponent(url.pathname));
+  } catch (_) { return false; }
+}
+
 function findDaoyuanScript(trees, ownId) {
   const matches = [];
   function walk(nodes) {
@@ -3885,6 +3898,10 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
     try { if (typeof getScriptId === 'function') ownId = getScriptId(); } catch (_) {}
     const characterId = SillyTavern.getContext?.()?.characterId ?? SillyTavern.characterId ?? null;
     const script = findDaoyuanScript(await api_getScriptTrees(), ownId);
+    if (!isDaoyuanStandaloneLoader(script.content)) {
+      showToast('当前小助手嵌在其他脚本中。请在酒馆助手里重载小手机或宿主脚本来更新。');
+      return;
+    }
     const release = await fetchDaoyuanUpdate();
     if (script.content === release.loader) {
       showToast('已是 main 最新提交（v' + release.version + '）');
@@ -3895,6 +3912,7 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
     await runInParent(`(() => {
       const update = ${JSON.stringify({ id: script.id, previous: script.content, loader: release.loader, characterId })};
       const find = ${findDaoyuanScript.toString()};
+      const isStandalone = ${isDaoyuanStandaloneLoader.toString()};
       const originalButton = document.getElementById('bp-switch-reload');
       setTimeout(async () => {
         try {
@@ -3906,6 +3924,7 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
           await TavernHelper.updateScriptTreesWith(trees => {
             const node = find(trees, update.id);
             if (node.content !== update.previous) throw new Error('脚本内容已变化，请重新检查更新');
+            if (!isStandalone(node.content)) throw new Error('拒绝覆盖包含其他代码的脚本');
             node.content = update.loader;
             return trees;
           }, { type: 'character' });
