@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.3';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.3';
+const DAOYUAN_VERSION = '1.4.5';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.5';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -1335,7 +1335,7 @@ function fillExtraModelOptions(select, ids) {
 }
 
 function isAutoFixableConfigIssue(issue) {
-  if (['额外模型解析非阻塞未开启', '自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
+  if (['自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
   return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek应使用V4兼容格式化输出|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
 }
 
@@ -1356,7 +1356,6 @@ function checkConfig() {
       }
       if (isExtra) {
         const em = cfg.额外模型解析配置 || {};
-        if (cfg.兼容性?.额外模型解析非阻塞 !== true) issues.push('额外模型解析非阻塞未开启');
         if (em.启用自动请求 !== true) issues.push('自动请求未开启');
         if (em.最小请求字数 !== 50) issues.push('最小请求字数应为50');
         if (!em.api地址 || !em.api地址.trim()) issues.push('API地址未填写');
@@ -2186,13 +2185,12 @@ async function mvuLiveApply(cfg) {
       await store._reload_settings();
       var st = store.settings;
       var emCfg = cfg.额外模型解析配置 || {};
-      var compatCfg = cfg.兼容性 || {};
       function matches(expected, actual, keys) {
         return keys.every(function(key) { return expected[key] === undefined || actual?.[key] === expected[key]; });
       }
       if (!st || st.更新方式 !== cfg.更新方式
         || !matches(emCfg, st.额外模型解析配置, ['模型来源', '模型名称', '启用自动请求', '最小请求字数'])
-        || !matches(compatCfg, st.兼容性, ['额外模型解析非阻塞'])) return { ok: false };
+) return { ok: false };
       var effective = store.effective_settings || st;
       var overridden = effective.更新方式 !== st.更新方式
         || !matches(emCfg, effective.额外模型解析配置, ['启用自动请求']);
@@ -2695,7 +2693,6 @@ function refreshMvuConfigStatus() {
     if (!notifOk) warnRows.push({ label: '四项通知未全开', val: false });
     if (isExtra) {
       if (!hasApi) warnRows.push({ label: 'API地址未填写', val: false });
-      if (cfg.兼容性?.额外模型解析非阻塞 !== true) warnRows.push({ label: '额外模型解析非阻塞未开启', val: false });
       if (em.启用自动请求 !== true) warnRows.push({ label: '自动请求未开启', val: false });
       if (em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
       if (_hasModel && !_rndOk) warnRows.push({ label: '随机头部' + _rndTag, val: false });
@@ -2770,7 +2767,6 @@ async function applyOptimalMvuConfig() {
     cfg.兼容性 = cfg.兼容性 || {};
     cfg.兼容性['更新到聊天变量'] = true;
     cfg.兼容性['显示老旧功能'] = false;
-    cfg.兼容性['额外模型解析非阻塞'] = true;
     cfg.兼容性['sendas不视为user消息'] = false;
     delete cfg.兼容性['sandas不视为user消息'];
 
@@ -3858,6 +3854,19 @@ async function fetchDaoyuanUpdate(fetcher = fetch) {
   return { version, loader: '// 道渊配置小助手 v' + version + ' · main ' + sha + '\nawait import(' + JSON.stringify(url) + ');' };
 }
 
+// 脚本 ID 只标识宿主，不能证明宿主是独立加载器。整段内容必须匹配已知导入格式。
+function isDaoyuanStandaloneLoader(content) {
+  if (typeof content !== 'string') return false;
+  const match = content.match(/^\s*(?:\/\/[^\r\n]*(?:\r?\n|$)\s*)*await\s+import\(\s*(['"])(https:\/\/[^'"\s]+)\1\s*(?:\+\s*Date\.now\(\s*\)\s*)?\)\s*;?\s*$/);
+  if (!match) return false;
+  try {
+    const url = new URL(match[2]);
+    return ['https://cdn.jsdelivr.net', 'https://testingcf.jsdelivr.net'].includes(url.origin)
+      && !url.username && !url.password
+      && /^\/gh\/NLKASHEI\/114514@(?:main|master|[a-f0-9]{40}|v\d+\.\d+\.\d+)\/道渊配置小助手(?:\.min)?\.js$/.test(decodeURIComponent(url.pathname));
+  } catch (_) { return false; }
+}
+
 function findDaoyuanScript(trees, ownId) {
   const matches = [];
   function walk(nodes) {
@@ -3885,6 +3894,10 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
     try { if (typeof getScriptId === 'function') ownId = getScriptId(); } catch (_) {}
     const characterId = SillyTavern.getContext?.()?.characterId ?? SillyTavern.characterId ?? null;
     const script = findDaoyuanScript(await api_getScriptTrees(), ownId);
+    if (!isDaoyuanStandaloneLoader(script.content)) {
+      showToast('当前小助手嵌在其他脚本中。请在酒馆助手里重载小手机或宿主脚本来更新。');
+      return;
+    }
     const release = await fetchDaoyuanUpdate();
     if (script.content === release.loader) {
       showToast('已是 main 最新提交（v' + release.version + '）');
@@ -3895,6 +3908,7 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
     await runInParent(`(() => {
       const update = ${JSON.stringify({ id: script.id, previous: script.content, loader: release.loader, characterId })};
       const find = ${findDaoyuanScript.toString()};
+      const isStandalone = ${isDaoyuanStandaloneLoader.toString()};
       const originalButton = document.getElementById('bp-switch-reload');
       setTimeout(async () => {
         try {
@@ -3906,6 +3920,7 @@ p.document.getElementById('bp-switch-reload').addEventListener('click', async (e
           await TavernHelper.updateScriptTreesWith(trees => {
             const node = find(trees, update.id);
             if (node.content !== update.previous) throw new Error('脚本内容已变化，请重新检查更新');
+            if (!isStandalone(node.content)) throw new Error('拒绝覆盖包含其他代码的脚本');
             node.content = update.loader;
             return trees;
           }, { type: 'character' });
