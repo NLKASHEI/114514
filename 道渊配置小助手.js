@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.2';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.2';
+const DAOYUAN_VERSION = '1.4.3';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.3';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -1043,41 +1043,71 @@ const COMBAT_AUDIT_STORAGE_PREFIX = 'bp-tian-dao-combat-audit:';
 
 // 这两段只提供给玩家手动复制到预设，不会自动写入世界书或预设。
 const WRITING_STYLE_PROMPT = String.raw`文风与叙事规范
+ 
 一、整体文风
-采用传统东方玄幻修仙网文风格，以第二人称叙述为主。语言平实、自然、清晰、沉稳，通过人物行动、事件发展、现实反应与因果关系推动剧情。长短句结合，普通情节简洁推进，关键事件、人物冲突与战斗转折充分展开。描写应具体且有用，避免流水账、过度扩写、辞藻堆砌及无关细节。
-文风统一不代表人物统一。叙述风格不得改变人物的性格、认知、立场与行为逻辑。
+ 
+采用冷峻、克制、客观的第二人称修仙叙事，以旁观者平稳记述全程，不抒情、不煽情、不代入主观情绪。整体风格贴合正统修仙质感，自带岁月沧桑、天地辽阔、仙途漫长的氛围，以万古遗迹、尘世浮沉、仙凡有别的落差，烘托世界观格局。
+ 
+叙事不靠大段心理独白，人物状态、心境变化，一律通过环境动静、外界刺激、对手举止侧面体现。句式张弛有度：日常赶路、探查、场景铺垫使用舒展长句；突发危机、对峙、厮杀切换短句提速，节奏干净利落。
+ 
+整体为浅古风半文半白、偏通俗修仙白话，贴近《凡人修仙传》正文语感。不用晦涩古词、不用拗口文言，同时彻底摒弃网络口水话、现代流行词、二次元、西幻词汇，只用正统修仙体系词汇，风格沉稳耐看、克制高级。
+ 
 二、人物与心理
-人物必须依据角色卡中的性格、经历、价值观、立场、欲望、人际关系、知识水平及当前处境行动，不得为了制造冲突、反转或迎合文风而扭曲人设。
-人物可以善良或邪恶、坦率或狡诈、勇敢或怯懦、谨慎或冲动。正直者可以守信助人，善良者可以真诚怜悯，重情者可以为亲友牺牲；不得将善意解释为利益交换、正义解释为虚伪、牺牲解释为愚蠢。不同人物应有独立的思维方式、道德底线与决策标准，不得将所有人塑造成冷漠、多疑、精于算计的类型。
-心理描写应具体自然，符合人物性格与认知。推理必须有信息依据，区分事实、判断、猜测与未知，允许误判和后续修正。只有符合人物性格与处境时，才重点描写利弊权衡、风险评估与长远谋划。情绪应自然呈现，避免反复分析、重复描写及强行故作深沉。
+ 
+不直白讲解内心活动，不直白写“紧张、愤怒、警惕、算计”。
+ 
+人物所有心境，全部通过眼神、微表情、细微肢体动作、下意识行为暗示体现：眉峰微蹙、目光沉冷、指尖微收、袖中暗捏法诀、神识反复扫查、站姿微沉等细节。
+ 
+修士举止贴合本心：谨慎、隐忍、多疑、利弊为先，面对威压、厮杀、伤势皆神色平淡。情绪内敛不外露，所有波动藏于行止，不显于言语，叙事语调始终平稳冷峻。
+ 
 三、互动与对话
-人物互动必须符合双方的关系、立场、性格与当前情境。亲友可以信任关心，陌生人可以保持距离或释放善意，敌对者可以交涉、欺骗或直接冲突。
-对话应自然、直接，符合人物身份、知识水平与表达习惯。人物可以坦率、撒谎、隐瞒、试探或拒绝，但必须符合自身逻辑。日常交流不必句句藏有深意，不得将所有对话写成试探、讥讽、威胁或利益谈判。删减重复解释与无意义的悬念，保留真实自然的人际交流。
+ 
+对话采用自然仿古白话，精炼通俗、无废话、不拗口。
+ 
+统一修仙称谓：道友、前辈、小友、阁下、贴合修士社交习惯。
+日常寒暄平淡自然；交易试探留有余地；对峙博弈话少意冷；敌对交锋言语干脆。
+ 
+对话逻辑贴合修仙真实生态：重利弊、重戒备、重后手，不浮夸、不幼稚、不矫情，没有无意义闲聊，每一句对话都贴合人物处境与立场。
+ 
+整体语感看着古风、读着不累、句句贴合修士身份。
+ 
 四、场景与动作
-环境描写应交代必要的空间、地形、光线、声音及其他相关细节，并服务于场景呈现、人物观察与事件发展。动作必须明确主体、目标、方式、先后顺序及实际结果，符合时间、空间与人物状态。重要行动应展现必要的过程、对方反应和结果，普通动作简洁带过。避免堆砌景物、重复渲染氛围或赋予每个细节特殊意义。
+ 
+场景描写全部具象写实，不用空洞夸赞，不写“极强、恐怖、厉害”这类虚话。
+ 
+通过光影、色泽、质感、破败痕迹具象画面：青虹、银霞、黑瘴、血光、凝实灵力、斑驳古石、风化断碑、残损阵纹等细节。侧重体现岁月流逝的荒芜感，以山河万古不变、修士浮生求索的对比烘托沧桑感。
+ 
+人物动作精准规范、贴合修仙设定：探指掐诀、灵光遁走、法宝祭出、身形掠空、踏风闪避。动作有轨迹、有动静、有风势，描写干脆不拖沓，画面清晰立体。
+ 
 五、战斗与冲突
-战斗应清晰呈现攻防过程、双方应对、局势变化及最终结果，使战局发展具有可理解的依据。
-战斗结果必须符合修为、能力、功法、装备、伤势、资源、已知信息与环境条件，不得为了爽点或戏剧效果破坏实力差距与既定事实。战术、欺骗、环境利用及弱点攻击必须符合人物的经验与能力，并承担相应后果。重要交锋适当展开，普通交手不必机械重复攻防流程。人物的战斗方式应符合自身性格，实力悬殊时可以迅速结束，势均力敌时则可充分展开。
+ 
+战斗叙事客观肃杀，侧重真实压迫感与场景破坏性。
+ 
+法术、器物交锋着重刻画实际效果：山石炸裂、地面焦黑、狂风卷石、空气震荡、灵光爆鸣。高阶修为压制以体感体现：灵压沉体、呼吸滞涩、皮肉发紧、法力迟滞，不靠直白旁白吹嘘境界差距。
+ 
+搭配多层视听细节：破空尖啸、灵光炸裂脆响、法宝震颤低鸣、气浪翻滚风声。攻防进退逻辑清晰，拆招、闪避、反击、僵持、后手层层推进。
+ 
+打斗风格：不浮夸、不秒天秒地、写实克制、步步见险、招招写实。
+ 
 六、剧情、视角与世界观
-剧情通过事件、行动、信息变化与人物选择推进，保持因果连贯。重要决定、关系变化、伤势、资源消耗、情报与事件结果必须得到后续承接，不得无故忽略或改写。悬念应来自真实的信息差与未解决的问题，不得故意隐瞒人物已知信息或无限拖延答案。
-保持叙事视角与信息逻辑稳定。人物只能依据观察、经历、他人告知、合理推理或自身能力获取信息，不得凭空知晓他人内心、隐藏身份及未知秘密。人物的猜测不等于客观事实。
-修仙设定应通过行动、能力表现与实际后果自然呈现。人物认知必须符合其身份、阅历、修为与知识来源。世界观介绍以当前剧情需要为限，不得堆砌背景资料，也不得将所有人物关系简化为利益争夺与弱肉强食。
-七、最终执行原则
-根据情节重要程度控制篇幅：普通情节简洁，关键事件充分；描写具体但不过度，心理细致但不冗长，对话自然，战斗合理，因果完整。
-严禁滥用修辞、重复描写、强行推理、无故反转、统一人物思维、扭曲善恶、越界获取信息，以及让文风或剧情需要凌驾于角色设定和既定事实之上。
-统一叙述风格，独立人物性格；推理必须有据，行动必须合乎人设；尊重客观事实，保持因果连贯；允许真诚与善意，也允许自私与算计。让人物依照自身逻辑行动，让故事通过行动及其后果自然展开。
-#示范(仅供参考)：
-院中，苏宁正蹲在石桌旁逗弄一只白猫。听见脚步声，她抬头看了一眼，发现是你回来了，立刻抱着猫站起身。
-
-“师兄，你总算回来了！我等了你半天啦～”
-
-“等我做什么？”
-
-“上次你答应给我带的糖糕呢？”
-
-你一怔，随即从储物袋里取出油纸包递给她。
-
-苏宁接过糖糕，笑着道了声谢，转眼便坐回石凳上。你摇了摇头，也没再管她，径直进屋去了。`;
+ 
+全程固定第二人称客观视角，视角逻辑完全贴合修士认知。
+ 
+所有判断、警惕、发现、预判，皆来源于：肉眼观察、神识扫查、灵力捕捉、环境异常、对手小动作。无上帝视角剧透，无凭空猜测，信息闭环、逻辑严谨。
+ 
+剧情推进依靠修仙核心行为：探遗迹、查禁制、识阵法、斗法交锋、资源博弈、交易换宝、隐匿潜行。世界观不堆砌设定，全部通过灵力、禁制、阵法、灵压、法宝、修士手段直观展现。
+ 
+持续保留「凡人寿短、仙路漫长、天地恢弘、个人微渺」的核心修仙氛围感。
+ 
+七、最终执行标准
+ 
+1. 叙事平淡克制，不用重修辞、不用晦涩古文，古风但好读。
+2. 情绪全部藏于动作神态，杜绝直白心理描写。
+3. 对话自然通俗，对标老牌正统修仙网文语感。
+4. 画面全部具象，靠光影、动静、质感、视听支撑。
+5. 战斗写实肃杀，修为压制体感真实，不浮夸。
+6. 全程无现代词汇、无网络梗、无幼稚句式。
+7. 整体质感：冷峻、沧桑、干净、正统、耐看、不僵硬。`;
 
 const ACTION_OPTIONS_PROMPT = String.raw`【剧情选项生成规则】
 
@@ -1108,6 +1138,29 @@ const ACTION_OPTIONS_PROMPT = String.raw`【剧情选项生成规则】
 const PREFERRED_WORLDBOOK_NAME = '《道渊》v5.4';
 const MIN_WORLD_BOOK_ENTRIES = 351;
 
+
+function bpSafeStorageGet(key) {
+  try { return localStorage.getItem(key); } catch (_) { return null; }
+}
+function bpSafeStorageSet(key, value) {
+  try { localStorage.setItem(key, value); return true; } catch (_) { return false; }
+}
+const bpCombatAuditUnsavedChoice = new Map();
+function bpCombatAuditGetChoice(key) {
+  return bpCombatAuditUnsavedChoice.has(key) ? bpCombatAuditUnsavedChoice.get(key) : bpSafeStorageGet(key);
+}
+function bpCombatAuditSaveChoice(key, value) {
+  bpCombatAuditUnsavedChoice.set(key, value);
+  return bpSafeStorageSet(key, value);
+}
+function bpCombatAuditFind(entries) {
+  return entries.find(e => e.name === '[mvu_plot]天道战斗审查')
+    || entries.find(e => e.name === '天道战斗审查') || null;
+}
+function bpCombatAuditSelector() {
+  return 'var e = entries.find(function(x) { return x.name === "[mvu_plot]天道战斗审查"; }) || entries.find(function(x) { return x.name === "天道战斗审查"; });';
+}
+
 // --- 界域动态人物相遇 & NPC 注入 ---
 const ENTRY_XUANTIAN_NPC = '玄天界动态人物相遇';
 const ENTRY_XIANJIE_NPC = '仙界动态人物相遇';
@@ -1124,11 +1177,11 @@ function getSelectedBirthplace() {
   for (const btn of birthBtns) {
     if (btn.classList.contains('active')) return btn.dataset.birthplace;
   }
-  return localStorage.getItem(STORAGE_KEY) || '玄天界';
+  return bpSafeStorageGet(STORAGE_KEY) || '玄天界';
 }
 
 function saveBirthplace(birthplace) {
-  localStorage.setItem(STORAGE_KEY, birthplace);
+  bpSafeStorageSet(STORAGE_KEY, birthplace);
   for (const btn of birthBtns) {
     btn.classList.toggle('active', btn.dataset.birthplace === birthplace);
   }
@@ -1139,11 +1192,11 @@ function getSelectedMode() {
   for (const btn of modeBtns) {
     if (btn.classList.contains('active')) return btn.dataset.mode;
   }
-  return localStorage.getItem(MODE_STORAGE_KEY) || 'mvu';
+  return bpSafeStorageGet(MODE_STORAGE_KEY) || 'mvu';
 }
 
 function saveMode(mode) {
-  localStorage.setItem(MODE_STORAGE_KEY, mode);
+  bpSafeStorageSet(MODE_STORAGE_KEY, mode);
   for (const btn of modeBtns) {
     btn.classList.toggle('active', btn.dataset.mode === mode);
   }
@@ -1170,18 +1223,25 @@ function syncCombatAuditUI(entry) {
 
 // 首次遇到该世界书时默认开启；之后以玩家在小助手里的选择为准，不反复强开。
 async function ensureCombatAuditDefault(entries, wbName) {
-  let entry = entries.find(e => e.name === ENTRY_COMBAT_AUDIT);
+  let entry = bpCombatAuditFind(entries);
   if (!entry) return null;
   const key = combatAuditStorageKey(wbName);
-  const saved = localStorage.getItem(key);
+  const saved = bpCombatAuditGetChoice(key);
   if (saved === null && !isCreationActive()) {
+    // 存储空间不足时，不强行开启条目，世界书中的 enabled 才是权威状态。
+    if (!bpCombatAuditSaveChoice(key, '1')) return entry;
     if (!entry.enabled) {
-      const freshEntries = await api_replaceWorldbook(wbName,
-        `(entries) => { var e = entries.find(function(x) { return x.name === ${JSON.stringify(ENTRY_COMBAT_AUDIT)}; }); if (e) e.enabled = true; }`
-      );
-      entry = freshEntries.find(e => e.name === ENTRY_COMBAT_AUDIT) || entry;
+      try {
+        const freshEntries = await api_replaceWorldbook(wbName,
+          `(entries) => { ${bpCombatAuditSelector()} if (e) e.enabled = true; }`
+        );
+        entry = bpCombatAuditFind(freshEntries) || entry;
+      } catch (error) {
+        bpCombatAuditUnsavedChoice.delete(key);
+        try { localStorage.removeItem(key); } catch (_) {}
+        throw error;
+      }
     }
-    localStorage.setItem(key, '1');
   }
   return entry;
 }
@@ -1190,10 +1250,11 @@ async function setCombatAuditEnabled(enabled) {
   const wbName = wbSelect.value;
   if (!wbName) throw new Error('未选择世界书');
   const freshEntries = await api_replaceWorldbook(wbName,
-    `(entries) => { var e = entries.find(function(x) { return x.name === ${JSON.stringify(ENTRY_COMBAT_AUDIT)}; }); if (!e) throw new Error('未找到「天道战斗审查」条目'); e.enabled = ${!!enabled}; }`
+    `(entries) => { ${bpCombatAuditSelector()} if (!e) throw new Error('未找到「天道战斗审查」条目'); e.enabled = ${!!enabled}; }`
   );
-  localStorage.setItem(combatAuditStorageKey(wbName), enabled ? '1' : '0');
-  return freshEntries.find(e => e.name === ENTRY_COMBAT_AUDIT) || null;
+  // 世界书更改成功后即视为成功；本地存储满额不应让界面误报失败。
+  bpCombatAuditSaveChoice(combatAuditStorageKey(wbName), enabled ? '1' : '0');
+  return bpCombatAuditFind(freshEntries);
 }
 
 async function copyPromptText(text, button, doneText) {
@@ -3464,7 +3525,7 @@ async function refreshStatus() {
     } catch(e) {}
 
     // 自动检测当前出生地：哪个条目已启用就激活对应按钮
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = bpSafeStorageGet(STORAGE_KEY);
     if (saved && [...birthBtns].some(b => b.dataset.birthplace === saved)) {
       for (const btn of birthBtns) btn.classList.toggle('active', btn.dataset.birthplace === saved);
     } else {
