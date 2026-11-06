@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.5';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.5';
+const DAOYUAN_VERSION = '1.4.6';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.6';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -2765,6 +2765,7 @@ async function applyOptimalMvuConfig() {
     ac.触发恢复变量的最近楼层数 = 10;
 
     cfg.兼容性 = cfg.兼容性 || {};
+    cfg.兼容性['额外模型解析非阻塞'] = false;
     cfg.兼容性['更新到聊天变量'] = true;
     cfg.兼容性['显示老旧功能'] = false;
     cfg.兼容性['sendas不视为user消息'] = false;
@@ -2835,6 +2836,7 @@ async function applySuiAIMvuConfig() {
     cfg.自动清理变量.要保留变量的最近楼层数 = 20;
     cfg.自动清理变量.触发恢复变量的最近楼层数 = 10;
     cfg.兼容性 = cfg.兼容性 || {};
+    cfg.兼容性['额外模型解析非阻塞'] = false;
     cfg.兼容性['更新到聊天变量'] = true;
     cfg.兼容性['显示老旧功能'] = false;
     cfg.兼容性['sendas不视为user消息'] = false;
