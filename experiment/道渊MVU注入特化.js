@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.3.0-experiment';
+  const VERSION = '1.4.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -324,6 +324,15 @@
     return out;
   }
 
+  function brief(stat) {
+    if (!stat) return '';
+    const w = stat.世界 || {};
+    const p = stat.主角 || {};
+    return '时间 ' + JSON.stringify(w.当前时间 || '') + ' ｜ 修为 ' + (p.修为 === undefined ? '?' : p.修为) +
+      ' ｜ 生命 ' + (p.生命 === undefined ? '?' : p.生命) + ' ｜ 冷却 ' + (w.遭遇冷却 === undefined ? '?' : w.遭遇冷却) +
+      ' ｜ 地点 ' + String(w.当前地点 || '').slice(0, 16);
+  }
+
   // ───────────────────────── 差异 ─────────────────────────
 
   function diffLines(before, after) {
@@ -440,6 +449,8 @@
         prevTime: previous && previous.世界 ? previous.世界.当前时间 : null,
         curTime: current && current.世界 ? current.世界.当前时间 : null,
         diffCount: diffs.length,
+        prevBrief: brief(previous),
+        curBrief: brief(current),
       },
     };
   }
@@ -482,10 +493,15 @@
         (view.raw.length - view.projection.length) + ' 字），日志 ' + view.log.length + ' 字');
     }
     window.__DAOYUAN_EXPR_LAST = view;
-    const isExtra = messages.some((m) => typeof m.content === 'string' && /<UpdateVariable>|JSONPatch/.test(m.content));
+    const joined = messages.map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n');
+    // 主模型请求由 ST 自己拼，不带 <past_observe>；额外模型请求一定带
+    const isExtra = joined.indexOf('<past_observe>') >= 0 || joined.indexOf('<additional_information>') >= 0;
+    const hasYaml = /<status_current_variables>[\s\S]{0,80}世界:/.test(joined);
+    const hasJson = /"stat_data"|"当前时间":/.test(joined);
     const snapshot = {
       at: new Date().toLocaleTimeString(),
       kind: isExtra ? '额外模型' : '主模型',
+      mode: hasYaml ? '投影(YAML)' : hasJson ? '原始(JSON)' : '未找到状态块',
       total: messages.length,
       chars: messages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : 0), 0),
       messages: messages.map((m) => ({
@@ -493,7 +509,7 @@
         content: typeof m.content === 'string' ? (m.content.length > 60000 ? m.content.slice(0, 60000) + '…' : m.content) : JSON.stringify(m.content),
       })),
     };
-    window.__DAOYUAN_EXPR_REQS = (window.__DAOYUAN_EXPR_REQS || []).concat([snapshot]).slice(-2);
+    window.__DAOYUAN_EXPR_REQS = (window.__DAOYUAN_EXPR_REQS || []).concat([snapshot]).slice(-4);
     renderPanel();
   }
 
@@ -568,7 +584,14 @@
     lines.push('时间：' + JSON.stringify(curTime) + ' → ' + (parsed.ok ? '解析成功（' + parsed.year + '-' + parsed.month + '-' + parsed.day + ' ' + parsed.hour + ':' + parsed.minute + '）' : '解析失败：' + parsed.error));
     const diag = view && view.diag;
     if (diag) {
-      lines.push('对比：# ' + diag.prevId + ' → # ' + diag.curId + '，上一楼时间 ' + JSON.stringify(diag.prevTime) + '，净变化 ' + diag.diffCount + ' 组' + (diag.diffCount ? '' : '（该轮状态无差异）'));
+      lines.push('对比：# ' + diag.prevId + ' → # ' + diag.curId + '，净变化 ' + diag.diffCount + ' 组' + (diag.diffCount ? '' : '（该轮状态无差异）'));
+      lines.push('上一楼：' + (diag.prevBrief || '(无)'));
+      lines.push('当前：  ' + (diag.curBrief || '(无)'));
+    }
+    const reqs2 = window.__DAOYUAN_EXPR_REQS || [];
+    if (reqs2.length) {
+      lines.push('最近请求：');
+      reqs2.forEach((r) => { lines.push('  · ' + r.at + ' ' + r.kind + ' / ' + r.mode + ' / ' + r.total + ' 条 / ' + r.chars + ' 字'); });
     }
     lines.push('请求：' + (req ? req.total + ' 条消息 / ' + req.chars + ' 字（' + req.at + '）' : '(无)'));
     lines.push('输出：' + (out ? out.at + '，第 ' + out.id + ' 楼，' + out.text.length + ' 字' : '(无)'));
