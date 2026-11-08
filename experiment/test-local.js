@@ -152,4 +152,10 @@ setTimeout(() => {
   }
   console.log('--- 额外模型输出（更新块）---');
   console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
+
+  // 落地更新之后，下一次请求的日志应该基于这次更新
+  const after = projectText();
+  const logBlock = (after.match(/<mvu变量上一轮次修改日志>[\s\S]*?<\/mvu变量上一轮次修改日志>/) || [''])[0];
+  console.log('--- 落地更新后的日志 ---');
+  console.log(logBlock || '(无)');
 }, 30);

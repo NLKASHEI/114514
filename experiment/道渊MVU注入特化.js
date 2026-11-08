@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.5.0-experiment';
+  const VERSION = '1.6.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -382,10 +382,8 @@
 
   // ───────────────────────── 日志 ─────────────────────────
 
-  function buildLog(current, previous, diffs) {
+  function timeLinesOf(prevTime, curTime) {
     const lines = [];
-    const curTime = current && current.世界 && current.世界.当前时间;
-    const prevTime = previous && previous.世界 && previous.世界.当前时间;
     const curP = parseTime(curTime);
     const prevP = parseTime(prevTime);
 
@@ -408,13 +406,28 @@
         lines.push('时间：未变。');
       }
     }
+    return lines;
+  }
+
+  function buildLog(current, previous, diffs) {
+    const last = window.__DAOYUAN_EXPR_LASTUPDATE;
+    const lines = [];
+
+    if (last && last.diffs && last.diffs.length >= 0 && last.at) {
+      lines.push.apply(lines, timeLinesOf(last.preTime, last.postTime));
+      lines.push.apply(lines, last.diffs);
+    } else {
+      const curTime = current && current.世界 && current.世界.当前时间;
+      const prevTime = previous && previous.世界 && previous.世界.当前时间;
+      lines.push.apply(lines, timeLinesOf(prevTime, curTime));
+      if (previous) lines.push.apply(lines, diffs || diffLines(previous, current));
+    }
 
     if (window.__DAOYUAN_EXPR_FIX) {
       lines.push('⚠ 上一楼时间越界，已由脚本回滚至「' + window.__DAOYUAN_EXPR_FIX + '」。');
       window.__DAOYUAN_EXPR_FIX = null;
     }
 
-    if (previous) lines.push.apply(lines, diffs || diffLines(previous, current));
     if (!lines.length) return '';
     return LOG_OPEN + '\n上轮净变化已生效，勿重复执行；此处仅记录变动信息。\n' +
       lines.slice(0, CFG.logMax + 4).join('\n') + '\n' + LOG_CLOSE;
@@ -509,6 +522,10 @@
         content: typeof m.content === 'string' ? (m.content.length > 60000 ? m.content.slice(0, 60000) + '…' : m.content) : JSON.stringify(m.content),
       })),
     };
+    if (isExtra) {
+      window.__DAOYUAN_EXPR_ATTEMPTS = (window.__DAOYUAN_EXPR_ATTEMPTS || 0) + 1;
+      if (!window.__DAOYUAN_EXPR_ATTEMPT_START) window.__DAOYUAN_EXPR_ATTEMPT_START = new Date().toLocaleTimeString();
+    }
     window.__DAOYUAN_EXPR_REQS = (window.__DAOYUAN_EXPR_REQS || []).concat([snapshot]).slice(-4);
     renderPanel();
   }
@@ -538,8 +555,20 @@
       }
     }
     const diffs = pre && post ? diffLines(pre, post) : [];
+    const now = new Date().toLocaleTimeString();
+    window.__DAOYUAN_EXPR_LASTUPDATE = {
+      at: now,
+      preTime: pre && pre.世界 ? pre.世界.当前时间 : null,
+      postTime: post && post.世界 ? post.世界.当前时间 : null,
+      diffs: diffs,
+      ops: Array.isArray(patch) ? patch.length : 0,
+      attempts: window.__DAOYUAN_EXPR_ATTEMPTS || 0,
+      startedAt: window.__DAOYUAN_EXPR_ATTEMPT_START || null,
+    };
+    window.__DAOYUAN_EXPR_ATTEMPTS = 0;
+    window.__DAOYUAN_EXPR_ATTEMPT_START = null;
     window.__DAOYUAN_EXPR_UPDATE = {
-      at: new Date().toLocaleTimeString(),
+      at: now,
       id: id,
       found: !!m,
       raw: raw,
@@ -631,6 +660,14 @@
       lines.push('对比：# ' + diag.prevId + ' → # ' + diag.curId + '，净变化 ' + diag.diffCount + ' 组' + (diag.diffCount ? '' : '（该轮状态无差异）'));
       lines.push('上一楼：' + (diag.prevBrief || '(无)'));
       lines.push('当前：  ' + (diag.curBrief || '(无)'));
+    }
+    const lastU = window.__DAOYUAN_EXPR_LASTUPDATE;
+    if (lastU) {
+      lines.push('上次落地：# 更新于 ' + lastU.at + '（第 ' + (lastU.attempts || 1) + ' 次额外请求，起于 ' + (lastU.startedAt || '?') + '），' +
+        lastU.ops + ' 条操作 / ' + (lastU.diffs ? lastU.diffs.length : 0) + ' 组变更');
+    }
+    if (window.__DAOYUAN_EXPR_ATTEMPTS) {
+      lines.push('⚠ 额外模型已请求 ' + window.__DAOYUAN_EXPR_ATTEMPTS + ' 次，尚未落地（起于 ' + (window.__DAOYUAN_EXPR_ATTEMPT_START || '?') + '）');
     }
     const reqs2 = window.__DAOYUAN_EXPR_REQS || [];
     if (reqs2.length) {
@@ -910,6 +947,10 @@
     eventOn(tavern_events.CHAT_CHANGED, () => {
       window.__DAOYUAN_EXPR_LAST = null;
       window.__DAOYUAN_EXPR_REQS = [];
+      window.__DAOYUAN_EXPR_LASTUPDATE = null;
+      window.__DAOYUAN_EXPR_UPDATE = null;
+      window.__DAOYUAN_EXPR_ATTEMPTS = 0;
+      window.__DAOYUAN_EXPR_ATTEMPT_START = null;
       window.__DAOYUAN_EXPR_FIX = null;
       resetPresence();
     });
