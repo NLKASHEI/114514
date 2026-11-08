@@ -53,7 +53,7 @@ const ctx = {
   eventOn: (n, f) => { (handlers[n] = handlers[n] || []).push(f); },
   tavern_events: { CHAT_COMPLETION_SETTINGS_READY: 'ready', CHAT_CHANGED: 'changed' },
   SillyTavern: { chat },
-  Mvu: { getMvuData: () => ({ stat_data: cur }), events: { BEFORE_MESSAGE_UPDATE: 'before' } },
+  Mvu: { getMvuData: () => ({ stat_data: cur }), events: { BEFORE_MESSAGE_UPDATE: 'before', VARIABLE_UPDATE_ENDED: 'ended', COMMAND_PARSED: 'parsed' } },
   getVariables: () => ({ stat_data: cur }),
   document: { body: null, getElementById: () => null },
   navigator: {},
@@ -118,4 +118,38 @@ setTimeout(() => {
   handlers.before && handlers.before.forEach((f) => f({ stat_data: { 世界: { 当前时间: '元会历·3728年·5月15日·14点00分' } } }, 3));
   console.log('--- 时间守卫（开启 timeFix） ---');
   console.log('回滚标记：', ctx.window.__DAOYUAN_EXPR_FIX || '(未触发)');
+
+  // ── 更新块捕获自测 ──
+  const block = [
+    '<UpdateVariable>',
+    '<Analysis>',
+    '世界.当前时间: Y',
+    '</Analysis>',
+    '<JSONPatch>',
+    JSON.stringify([
+      { op: 'replace', path: '/世界/当前时间', value: '元会历·3728年·5月16日·15点30分' },
+      { op: 'delta', path: '/主角/生命', value: -20 },
+      { op: 'insert', path: '/人物/青练', value: { 好感: 90 } },
+    ], null, 2),
+    '</JSONPatch>',
+    '</UpdateVariable>',
+  ].join('\n');
+  const lastMsg = chat[chat.length - 1];
+  lastMsg.mes = '正文……\n\n' + block;
+
+  const nextState = JSON.parse(JSON.stringify(cur));
+  nextState.主角.生命 = (nextState.主角.生命 || 100) - 20;
+  nextState.世界.当前时间 = '元会历·3728年·5月16日·15点30分';
+
+  if (handlers.parsed) {
+    handlers.parsed.forEach((f) => f({}, [
+      { type: 'replace', args: ['/世界/当前时间'] },
+      { type: 'delta', args: ['/主角/生命'] },
+    ]));
+  }
+  if (handlers.ended) {
+    handlers.ended.forEach((f) => f({ stat_data: nextState }, { stat_data: cur }));
+  }
+  console.log('--- 额外模型输出（更新块）---');
+  console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
 }, 30);

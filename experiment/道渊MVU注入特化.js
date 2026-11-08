@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.4.0-experiment';
+  const VERSION = '1.5.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -513,6 +513,50 @@
     renderPanel();
   }
 
+  // ───────────────────────── 更新块捕获 ─────────────────────────
+
+  function captureUpdate(pre, post) {
+    const chat = chatList();
+    let id = -1;
+    for (let i = chat.length - 1; i >= 0; i--) {
+      if (!chat[i].is_user && !chat[i].is_system) { id = i; break; }
+    }
+    const mes = id >= 0 ? String(chat[id].mes || '') : '';
+    const m = mes.match(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/i);
+    const raw = m ? m[0] : '';
+    const jm = raw.match(/<JSONPatch>([\s\S]*?)<\/JSONPatch>/i);
+    let patch = null;
+    let patchOk = false;
+    let patchErr = '';
+    if (jm) {
+      try {
+        patch = JSON.parse(jm[1].trim());
+        patchOk = Array.isArray(patch);
+        if (!patchOk) patchErr = 'JSONPatch 不是数组';
+      } catch (e) {
+        patchErr = String(e && e.message ? e.message : e);
+      }
+    }
+    const diffs = pre && post ? diffLines(pre, post) : [];
+    window.__DAOYUAN_EXPR_UPDATE = {
+      at: new Date().toLocaleTimeString(),
+      id: id,
+      found: !!m,
+      raw: raw,
+      patch: patch,
+      patchOk: patchOk,
+      patchErr: patchErr,
+      ops: Array.isArray(patch) ? patch.length : 0,
+      changed: diffs.length,
+      diffs: diffs,
+      cmds: window.__DAOYUAN_EXPR_CMDS || [],
+      pre: brief(pre),
+      post: brief(post),
+    };
+    window.__DAOYUAN_EXPR_CMDS = null;
+    renderPanel();
+  }
+
   // ───────────────────────── 时间守卫 ─────────────────────────
 
   function previousValidTime(beforeId) {
@@ -619,12 +663,40 @@
     return out ? out.text : '';
   }
 
+  function buildUpdate() {
+    const u = window.__DAOYUAN_EXPR_UPDATE;
+    if (!u) return '(还没抓到更新块)';
+    const lines = [];
+    lines.push('时间：' + u.at + '　楼层：#' + u.id);
+    lines.push('找到更新块：' + (u.found ? '是' : '否') + '　JSONPatch：' + (u.patchOk ? '解析成功' : '解析失败 ' + u.patchErr));
+    lines.push('操作数：' + u.ops + '　实际生效变更：' + u.changed + ' 组');
+    if (u.pre || u.post) {
+      lines.push('应用前：' + (u.pre || '(无)'));
+      lines.push('应用后：' + (u.post || '(无)'));
+    }
+    if (u.diffs && u.diffs.length) {
+      lines.push('');
+      lines.push('—— 实际变更 ——');
+      lines.push.apply(lines, u.diffs);
+    }
+    if (u.cmds && u.cmds.length) {
+      lines.push('');
+      lines.push('—— MVU 解析出的命令 ——');
+      u.cmds.forEach((c) => lines.push(c.type + '  ' + c.path));
+    }
+    lines.push('');
+    lines.push('—— 原始输出 ——');
+    lines.push(u.raw || '(无)');
+    return lines.join('\n');
+  }
+
   function buildDump() {
     return [
       '### 概览\n' + overviewText(),
       '### 注入给模型的变量块\n' + (buildInjection() || '(空)'),
       '### 请求体\n' + (buildRequest() || '(空)'),
-      '### 输出体\n' + (buildOutput() || '(空)'),
+      '### 主模型输出（正文）\n' + (buildOutput() || '(空)'),
+      '### 额外模型输出（变量更新块）\n' + buildUpdate(),
     ].join('\n\n');
   }
 
@@ -745,7 +817,8 @@
     c.appendChild(section('概览', overviewText(), true));
     c.appendChild(section('注入给模型的变量块', buildInjection(), false));
     c.appendChild(section('请求体（实际发出的消息）', buildRequest(), false));
-    c.appendChild(section('输出体（最近一条 AI 回复）', buildOutput(), false));
+    c.appendChild(section('主模型输出（正文）', buildOutput(), false));
+    c.appendChild(section('额外模型输出（变量更新块）', buildUpdate(), false));
   }
 
   function initPanel() {
@@ -783,6 +856,7 @@
     tools.appendChild(mkBtn('导出全部', () => exportAll()));
     tools.appendChild(mkBtn('导出请求', () => downloadText('道渊EXPR-请求.txt', buildRequest())));
     tools.appendChild(mkBtn('导出输出', () => downloadText('道渊EXPR-输出.txt', buildOutput())));
+    tools.appendChild(mkBtn('导出更新块', () => downloadText('道渊EXPR-更新块.txt', buildUpdate())));
     tools.appendChild(mkBtn('复制全部', () => copyText(buildDump())));
     tools.appendChild(mkBtn('文本框', () => showTextModal('道渊EXPR', buildDump())));
     tools.appendChild(mkBtn('刷新', () => renderPanel()));
@@ -866,6 +940,25 @@
 
     try {
       const events = (typeof Mvu !== 'undefined' && Mvu.events) || {};
+      if (events.VARIABLE_UPDATE_ENDED) {
+        eventOn(events.VARIABLE_UPDATE_ENDED, (next, prev) => {
+          try {
+            captureUpdate(prev && prev.stat_data, next && next.stat_data);
+          } catch (e) {
+            console.warn(TAG, '捕获更新块失败', e);
+          }
+        });
+      }
+      if (events.COMMAND_PARSED) {
+        eventOn(events.COMMAND_PARSED, (variables, commands) => {
+          try {
+            window.__DAOYUAN_EXPR_CMDS = (commands || []).map((c) => ({
+              type: c && c.type,
+              path: (c && c.args && c.args[0]) || '',
+            }));
+          } catch (e) { /* 忽略 */ }
+        });
+      }
       const before = events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update';
       // 始终挂载，由 CFG.timeFix 决定是否真正生效（方便运行时开关）
       eventOn(before, (variables, messageId) => guardTime(variables, messageId));
@@ -896,6 +989,9 @@
       },
       exportAll() {
         return exportAll();
+      },
+      update() {
+        return buildUpdate();
       },
       exportRequest() {
         const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
