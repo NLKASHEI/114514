@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.7';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.7';
+const DAOYUAN_VERSION = '1.4.8';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.8';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -25,6 +25,7 @@ const IS_TAURITAVERN = (() => {
 
 // 防重复加载
 if (!p._daoYuanLoaded) { p._daoYuanLoaded = true;
+const helperLifetime = new AbortController();
 
 // ── 道渊立绘悬浮窗资源（base64 内嵌，构建时注入） ──
 // idle/press/drag/open/close 五态立绘，替换原"图床圆圈"气泡
@@ -52,18 +53,27 @@ if (oldBubble) oldBubble.remove();
 function runInParent(fnString, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const token = 'bp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
-    const handler = (e) => {
-      if (!e.detail || e.detail.token !== token) return;
+    const signal = helperLifetime.signal;
+    if (signal.aborted) { reject(signal.reason); return; }
+    let timer;
+    const cleanup = () => {
       clearTimeout(timer);
       p.document.removeEventListener('bp-result', handler);
+      signal.removeEventListener('abort', abort);
+    };
+    const abort = () => { cleanup(); reject(signal.reason); };
+    const handler = (e) => {
+      if (!e.detail || e.detail.token !== token) return;
+      cleanup();
       if (e.detail.error) reject(new Error(e.detail.error));
       else resolve(e.detail.result);
     };
     p.document.addEventListener('bp-result', handler);
-    const timer = timeoutMs > 0 ? setTimeout(() => {
-      p.document.removeEventListener('bp-result', handler);
+    signal.addEventListener('abort', abort, { once: true });
+    if (timeoutMs > 0) timer = setTimeout(() => {
+      cleanup();
       reject(new Error('酒馆助手返回结果超时，请刷新后核对操作状态'));
-    }, timeoutMs) : null;
+    }, timeoutMs);
 
     const script = p.document.createElement('script');
     script.textContent = `
@@ -76,8 +86,8 @@ function runInParent(fnString, timeoutMs = 15000) {
   }
 })();
 `;
-    p.document.body.appendChild(script);
-    script.remove();
+    try { p.document.body.appendChild(script); } catch (error) { cleanup(); reject(error); }
+    finally { script.remove(); }
   });
 }
 
@@ -1346,7 +1356,7 @@ function isAutoFixableConfigIssue(issue) {
 
 function checkConfig() {
   try {
-    updateBackendCode();
+    if (panel.style.display !== 'none') updateBackendCode();
     const issues = [];
 
     // 1) MVU 调优检测
@@ -1669,6 +1679,7 @@ function encryptPayload(payload) {
   return desEcbPkcs7EncryptBase64(payload, _BK);
 }
 
+let lastBackendCodePayload;
 function updateBackendCode() {
   try {
     const model = (SillyTavern.getChatCompletionModel && SillyTavern.getChatCompletionModel()) || '';
@@ -1678,9 +1689,12 @@ function updateBackendCode() {
     const plugUrl = proxyUrl || SOURCE_URL[source] || getMainApiUrl() || '';
     const localHref = (p && p.location && p.location.href) || '';
     const payload = model + '|' + (source || '') + '|' + (SOURCE_LABEL[source] || '') + '|' + plugUrl + '|' + localHref;
+    if (payload === lastBackendCodePayload) return;
     const encrypted = encryptPayload(payload);
     backendCode.innerHTML = '<span style="font-size:10px;color:#6a8098;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#D4AF37;padding:2px 6px;border-radius:3px;border:1px solid #2a3a50;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
+    lastBackendCodePayload = payload;
   } catch (e) {
+    lastBackendCodePayload = undefined;
     backendCode.innerHTML = '';
   }
 }
@@ -3250,7 +3264,7 @@ bubble.addEventListener('click', (e) => {
 });
 
 // 面板获得鼠标时自动刷新（用户可能中途手动改了设置）
-panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); updateBackendCode(); refreshWorldbookList(); checkEjsTemplate(); });
+panel.addEventListener('mouseenter', () => { checkConfig(); refreshMvuConfigStatus(); refreshModeStatus(); checkEjsTemplate(); });
 
 // 关闭按钮
 const closeBtn = p.document.getElementById('bp-switch-close');
@@ -3265,7 +3279,7 @@ p.document.addEventListener('click', (e) => {
     showPetBubble(DY_PET_BUBBLE_TEXT.close, typeof PET_ACTION_LIFE === 'number' ? PET_ACTION_LIFE : 1600);
     panel.style.display = 'none';
   }
-});
+}, { signal: helperLifetime.signal });
 function getXY(e) {
   if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
   if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
@@ -3383,10 +3397,10 @@ function onBubbleEnd() {
 }
 bubble.addEventListener('mousedown', onBubbleStart);
 bubble.addEventListener('touchstart', onBubbleStart, { passive: false });
-p.document.addEventListener('mousemove', onBubbleMove);
-p.document.addEventListener('touchmove', onBubbleMove, { passive: false });
-p.document.addEventListener('mouseup', onBubbleEnd);
-p.document.addEventListener('touchend', onBubbleEnd);
+p.document.addEventListener('mousemove', onBubbleMove, { signal: helperLifetime.signal });
+p.document.addEventListener('touchmove', onBubbleMove, { passive: false, signal: helperLifetime.signal });
+p.document.addEventListener('mouseup', onBubbleEnd, { signal: helperLifetime.signal });
+p.document.addEventListener('touchend', onBubbleEnd, { signal: helperLifetime.signal });
 
 // 悬停/触摸到露出的边角时弹回完整立绘
 bubble.addEventListener('pointerenter', () => {
@@ -3406,7 +3420,7 @@ p.addEventListener('resize', () => {
     clearTimeout(dockTimer);
     dockTimer = p.setTimeout(() => dockBubbleToEdge(), 400);
   }
-});
+}, { signal: helperLifetime.signal });
 
 // --- 面板拖拽（支持触摸） ---
 function keepPanelInViewport() {
@@ -3420,8 +3434,8 @@ function keepPanelInViewport() {
   panel.style.left = Math.max(leftEdge, Math.min(parseFloat(panel.style.left) || leftEdge, leftEdge + width - panel.offsetWidth - 20)) + 'px';
   panel.style.top = Math.max(topEdge, Math.min(parseFloat(panel.style.top) || topEdge, topEdge + height - panel.offsetHeight - 20)) + 'px';
 }
-p.addEventListener('resize', keepPanelInViewport);
-if (p.visualViewport) p.visualViewport.addEventListener('resize', keepPanelInViewport);
+p.addEventListener('resize', keepPanelInViewport, { signal: helperLifetime.signal });
+if (p.visualViewport) p.visualViewport.addEventListener('resize', keepPanelInViewport, { signal: helperLifetime.signal });
 const dragHandle = p.document.getElementById('bp-switch-drag');
 let dragPanel = false, pSX, pSY, pOL, pOT;
 function onPanelStart(e) {
@@ -3449,10 +3463,10 @@ function onPanelMove(e) {
 function onPanelEnd() { dragPanel = false; }
 dragHandle.addEventListener('mousedown', onPanelStart);
 dragHandle.addEventListener('touchstart', onPanelStart, { passive: false });
-p.document.addEventListener('mousemove', onPanelMove);
-p.document.addEventListener('touchmove', onPanelMove, { passive: false });
-p.document.addEventListener('mouseup', onPanelEnd);
-p.document.addEventListener('touchend', onPanelEnd);
+p.document.addEventListener('mousemove', onPanelMove, { signal: helperLifetime.signal });
+p.document.addEventListener('touchmove', onPanelMove, { passive: false, signal: helperLifetime.signal });
+p.document.addEventListener('mouseup', onPanelEnd, { signal: helperLifetime.signal });
+p.document.addEventListener('touchend', onPanelEnd, { signal: helperLifetime.signal });
 
 // --- 刷新世界书列表（在父页面上下文执行）---
 async function refreshWorldbookList() {
@@ -3460,6 +3474,7 @@ async function refreshWorldbookList() {
     const names = await api_getWorldbookNames();
     let charWb = { primary: null };
     try { charWb = await api_getCharWorldbooks(); } catch (e) {}
+    if (helperLifetime.signal.aborted) return;
 
     wbSelect.innerHTML = '';
     const maxLen = 22;
@@ -3479,7 +3494,9 @@ async function refreshWorldbookList() {
       wbSelect.innerHTML = '<option value="">-- 未找到任何世界书 --</option>';
     }
     await refreshStatus();
+    await refreshModeStatus();
   } catch (e) {
+    if (helperLifetime.signal.aborted) return;
     wbSelect.innerHTML = '<option value="">-- 获取失败 --</option>';
   }
 }
@@ -3494,6 +3511,7 @@ async function refreshStatus() {
   }
   try {
     const entries = await api_getWorldbook(wbName);
+    if (helperLifetime.signal.aborted || wbSelect.value !== wbName) return;
     let xu = entries.find(e => e.name === ENTRY_XUANTIAN);
     let xj = entries.find(e => e.name === ENTRY_XIANJIE);
     let combatAudit = await ensureCombatAuditDefault(entries, wbName);
@@ -3515,6 +3533,7 @@ async function refreshStatus() {
     // 刷新聊天吞表单；开局确认后的切换由轮询的「创建结束边沿」检测触发。
     try {
       const mvuRealm = await api_getMvuRealm();
+      if (helperLifetime.signal.aborted || wbSelect.value !== wbName) return;
       if (mvuRealm) {
         _lastMvuRealm = mvuRealm;
         saveBirthplace(mvuRealm);
@@ -3734,79 +3753,97 @@ async function doSwitchMode(mode) {
   } else {
     showToast('已切换为「' + (isXML ? 'XML状态栏' : 'MVU状态栏') + '」');
   }
-  refreshModeStatus();
+  refreshModeStatus(true);
   refreshMvuSectionVisibility();
 }
-async function refreshModeStatus() {
-  const wbName = wbSelect.value;
-  if (!wbName) { modeStatus.textContent = '请先选择世界书'; return; }
-
-  // 世界书（读取所有受控条目的当前状态）
-  let wbSb = null, wbMvuUpdate = null, wbMvuOutFmt = null, wbVarList = null;
-  try {
-    const entries = await api_getWorldbook(wbName);
-    wbSb        = entries.find(e => e.name === ENTRY_STATUSBAR);
-    wbMvuUpdate = entries.find(e => e.name === '[mvu_update]');
-    wbMvuOutFmt = entries.find(e => e.name === '[mvu_update]变量输出格式');
-    wbVarList   = entries.find(e => e.name === '变量列表');
-    // 缓存输出格式强调状态（供 checkConfig 黄灯抑制用，与状态栏无关）
-    const wbMvuOutEm = entries.find(e => e.name === '[mvu_update]变量输出格式强调');
-    _mvuOutputFormatEnabled = !!(wbMvuOutEm && wbMvuOutEm.enabled);
-  } catch (e) {}
-
-  // 正则
-  let reXml = null, reMvu = null, reLast3 = null;
-  try {
-    const regexes = await api_getTavernRegexes();
-    reXml = regexes.find(r => r.script_name === REGEX_XML_STATUSBAR);
-    reMvu = regexes.find(r => r.script_name === REGEX_MVU_STATUSBAR);
-    reLast3 = regexes.find(r => r.script_name === REGEX_LAST_THREE);
-  } catch (e) {}
-
-  // 更新误开计数（世界书 + 正则）
-  var curMode2 = getSelectedMode(), isMvu2 = curMode2 === 'mvu', wrong2 = 0;
-  if (isMvu2) {
-    if (wbSb && wbSb.enabled) wrong2++;
-    if (reXml && reXml.enabled) wrong2++;
-    if (reLast3 && reLast3.enabled) wrong2++;
-  } else {
-    if (wbMvuUpdate && wbMvuUpdate.enabled) wrong2++;
-    if (wbMvuOutFmt && wbMvuOutFmt.enabled) wrong2++;
-    if (wbVarList && wbVarList.enabled) wrong2++;
-    if (reMvu && reMvu.enabled) wrong2++;
-  }
-  _statebarWrongItems = wrong2;
-
-  // 脚本
-  let scZod = null, scMvu = null;
-  try {
-    const trees = await api_getScriptTrees();
-    function walk(nodes) {
-      for (const n of nodes) {
-        if (n.type === 'script' && n.name === 'ZOD') scZod = n;
-        if (n.type === 'script' && n.name === 'MVU') scMvu = n;
-        if (n.type === 'folder' && n.scripts) walk(n.scripts);
+// 只将面板需要的开关状态从父页面传回，不传条目正文、正则替换内容和脚本源码。
+function readModeStatus(wbName) {
+  return runInParent(`(async () => {
+    const [entries, regexes, trees] = await Promise.allSettled([
+      Promise.resolve().then(() => TavernHelper.getWorldbook(${JSON.stringify(wbName)})),
+      Promise.resolve().then(() => TavernHelper.getTavernRegexes({ type: "character" })),
+      Promise.resolve().then(() => TavernHelper.getScriptTrees({ type: "character" })),
+    ]);
+    const pick = (result, names, key) => result.status === "fulfilled"
+      ? names.map(name => result.value.find(item => item[key] === name)?.enabled ?? null)
+      : names.map(() => null);
+    const scriptNames = ${JSON.stringify(SCRIPT_NAMES_TOGGLE)};
+    const scripts = scriptNames.map(() => null);
+    function visit(nodes) {
+      for (const node of nodes) {
+        if (node.type === "script") {
+          const index = scriptNames.indexOf(node.name);
+          if (index >= 0) scripts[index] = node.enabled ?? null;
+        }
+        if (node.type === "folder" && node.scripts) visit(node.scripts);
       }
     }
-    walk(trees);
-  } catch (e) {}
+    if (trees.status === "fulfilled") visit(trees.value);
+    return {
+      entries: pick(entries, ${JSON.stringify([ENTRY_STATUSBAR, ...MVU_AUX_ENTRIES, "[mvu_update]变量输出格式强调"])}, "name"),
+      regexes: pick(regexes, ${JSON.stringify([REGEX_XML_STATUSBAR, REGEX_MVU_STATUSBAR, REGEX_LAST_THREE])}, "script_name"),
+      scripts,
+    };
+  })()`);
+}
 
-  const en = (entry) => entry ? entry.enabled : null;
+let pendingModeStatus = null;
+async function refreshModeStatus(afterWrite = false) {
+  if (helperLifetime.signal.aborted) return;
+  const wbName = wbSelect.value;
+  if (!wbName) {
+    pendingModeStatus = null;
+    _statebarWrongItems = 0;
+    _mvuOutputFormatEnabled = false;
+    modeStatus.textContent = '请先选择世界书';
+    return;
+  }
+  if (pendingModeStatus?.wbName === wbName) {
+    await pendingModeStatus.done;
+    if (afterWrite && wbSelect.value === wbName) return refreshModeStatus();
+    return;
+  }
+  const request = { wbName, done: null };
+  pendingModeStatus = request;
+  request.done = (async () => {
+    try {
+      const snapshot = await readModeStatus(wbName);
+      if (helperLifetime.signal.aborted || pendingModeStatus !== request || wbSelect.value !== wbName) return;
+      renderModeStatus(snapshot);
+      checkConfig();
+    } catch (_) {
+      if (!helperLifetime.signal.aborted && pendingModeStatus === request && wbSelect.value === wbName) {
+        modeStatus.textContent = '状态栏配置读取失败';
+      }
+    } finally {
+      if (pendingModeStatus === request) pendingModeStatus = null;
+    }
+  })();
+  await request.done;
+}
+
+function renderModeStatus(snapshot) {
+  const [wbSb, wbMvuUpdate, wbMvuOutFmt, wbVarList, wbMvuOutEm] = snapshot.entries;
+  const [reXml, reMvu, reLast3] = snapshot.regexes;
+  const [scZod, scMvu] = snapshot.scripts;
+  _mvuOutputFormatEnabled = !!wbMvuOutEm;
+  const wrong = getSelectedMode() === 'mvu' ? [wbSb, reXml, reLast3] : [wbMvuUpdate, wbMvuOutFmt, wbVarList, reMvu];
+  _statebarWrongItems = wrong.filter(Boolean).length;
 
   // MVU相关条目
   const colLeft = [
-    { label: 'MVU正则',              cur: en(reMvu) },
-    { label: 'ZOD脚本',              cur: en(scZod) },
-    { label: 'MVU脚本',              cur: en(scMvu) },
-    { label: '[mvu_update]',         cur: en(wbMvuUpdate) },
-    { label: '[mvu_update]输出格式', cur: en(wbMvuOutFmt) },
-    { label: '变量列表',             cur: en(wbVarList) },
+    { label: 'MVU正则',              cur: reMvu },
+    { label: 'ZOD脚本',              cur: scZod },
+    { label: 'MVU脚本',              cur: scMvu },
+    { label: '[mvu_update]',         cur: wbMvuUpdate },
+    { label: '[mvu_update]输出格式', cur: wbMvuOutFmt },
+    { label: '变量列表',             cur: wbVarList },
   ];
   // XML相关条目
   const colRight = [
-    { label: '状态栏条目',           cur: en(wbSb) },
-    { label: 'XML正则',              cur: en(reXml) },
-    { label: '仅输出最后三条',       cur: en(reLast3) },
+    { label: '状态栏条目',           cur: wbSb },
+    { label: 'XML正则',              cur: reXml },
+    { label: '仅输出最后三条',       cur: reLast3 },
   ];
 
   const cs2 = 'font-size:11px;color:#8aa0c0;line-height:1.5;';
@@ -3821,10 +3858,11 @@ async function refreshModeStatus() {
       }).join('') +
     '</div>';
 
-  modeStatus.innerHTML =
+  const markup =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 12px;">' +
     renderCol('MVU', colLeft) + renderCol('XML', colRight) +
     '</div>';
+  if (modeStatus.innerHTML !== markup) modeStatus.innerHTML = markup;
 }
 
 // --- 事件绑定 ---
@@ -3996,8 +4034,8 @@ for (const btn of birthBtns) {
 // 剧情中期界域变化（飞升等）同样走防抖复读后自动对齐。
 let _realmWatchBusy = false;
 let _wasCreationActive = null; // 上一次轮询时的创建状态
-setInterval(async () => {
-  if (_realmWatchBusy) return;
+const realmWatchTimer = setInterval(async () => {
+  if (_realmWatchBusy || helperLifetime.signal.aborted) return;
   _realmWatchBusy = true;
   try {
     const creationNow = isCreationActive();
@@ -4007,6 +4045,7 @@ setInterval(async () => {
     _wasCreationActive = creationNow;
 
     const r = await api_getMvuRealm();
+    if (helperLifetime.signal.aborted) return;
     if (r && (r !== _lastMvuRealm || justLeftCreation)) {
       if (creationNow) {
         // 创建填表中：只记录并同步按钮状态，不动世界书
@@ -4015,19 +4054,22 @@ setInterval(async () => {
       } else {
         // 防抖：等 2 秒复读确认值稳定，避免刷新瞬间旧值误触发
         await new Promise(res => setTimeout(res, 2000));
+        if (helperLifetime.signal.aborted || isCreationActive()) return;
         const r2 = await api_getMvuRealm();
-        if (r2 === r && (r !== _lastMvuRealm || justLeftCreation)) {
+        if (!helperLifetime.signal.aborted && !isCreationActive() && r2 === r && (r !== _lastMvuRealm || justLeftCreation)) {
           _lastMvuRealm = r;
           saveBirthplace(r);
           if (wbSelect.value) {
             await refreshStatus();
+            if (helperLifetime.signal.aborted) return;
             showToast((justLeftCreation ? '开局界域「' : '检测到界域变为「') + r + '」，世界书已自动同步');
           }
         }
       }
     }
-  } catch (e) {}
-  _realmWatchBusy = false;
+  } catch (e) {} finally {
+    _realmWatchBusy = false;
+  }
 }, 5000);
 
 for (const btn of modeBtns) {
@@ -4448,8 +4490,8 @@ if (confirmDragHandle && confirmDialog) {
     if (!dlgDrag || !confirmDialog || !e.touches.length) return;
     confirmDialog.style.left = (dlgLeft + e.touches[0].clientX - dlgSX) + 'px';
     confirmDialog.style.top = (dlgTop + e.touches[0].clientY - dlgSY) + 'px';
-  }, { passive: false });
-  ROOT.document.addEventListener('touchend', () => { dlgDrag = false; });
+  }, { passive: false, signal: helperLifetime.signal });
+  ROOT.document.addEventListener('touchend', () => { dlgDrag = false; }, { signal: helperLifetime.signal });
 }
 
 // --- 初始化 ---
@@ -4475,71 +4517,38 @@ ewcSyncMvuDom().catch(() => {});
 
 let _statebarWrongItems = 0; // 状态栏模式中误开启的对端条目数
 checkConfig();
-// 每5秒自动检测一次配置（模型切换后呼吸灯自动跟上，无需打开面板）
-
-setInterval(async () => {
-  try {
-    const wn = wbSelect.value;
-    if (wn) {
-      const entries = await api_getWorldbook(wn);
-      const e = entries.find(x => x.name === '[mvu_update]变量输出格式强调');
-      _mvuOutputFormatEnabled = !!(e && e.enabled);
-      // 检测状态栏模式误开（世界书 + 正则）
-      const isMvu = getSelectedMode() === 'mvu';
-      let wrong = 0;
-      const sb = entries.find(x => x.name === ENTRY_STATUSBAR);
-      const mvuEntryNames = ['[mvu_update]', '[mvu_update]变量输出格式', '变量列表'];
-      if (isMvu) {
-        if (sb && sb.enabled) wrong++;
-      } else {
-        mvuEntryNames.forEach(n => { const e2 = entries.find(x => x.name === n); if (e2 && e2.enabled) wrong++; });
-      }
-      // 正则误开检测
-      try {
-        const regexes = await api_getTavernRegexes();
-        const xmlRe = regexes.find(r => r.script_name === REGEX_XML_STATUSBAR);
-        const mvuRe = regexes.find(r => r.script_name === REGEX_MVU_STATUSBAR);
-        const last3Re = regexes.find(r => r.script_name === REGEX_LAST_THREE);
-        if (isMvu) {
-          if (xmlRe && xmlRe.enabled) wrong++;
-          if (last3Re && last3Re.enabled) wrong++;
-        } else {
-          if (mvuRe && mvuRe.enabled) wrong++;
-        }
-      } catch(e) {}
-      _statebarWrongItems = wrong;
-    }
-  } catch(e) {}
-  checkConfig();
-  updateBackendCode();
-  refreshModeStatus();
+// 面板关闭时只检查内存里的配置，世界书和状态栏详情在面板打开时读取。
+const configPollTimer = setInterval(() => {
+  if (helperLifetime.signal.aborted || p.document.hidden) return;
+  if (panel.style.display !== 'none') {
+    if (!pendingModeStatus) void refreshModeStatus();
+  } else {
+    checkConfig();
+  }
 }, 5000);
 saveMode(getSelectedMode());
 refreshMvuSectionVisibility();
 
-await refreshMvuConfigStatus();
-await refreshWorldbookList();
-refreshModeStatus();
-checkEjsTemplate();
-
-// 资源回收：iframe卸载时清理注入的DOM和事件
+// 在首次异步读取前注册清理，防止快速重载留下父页面监听或定时器。
 window._daoYuanCleanup = function() {
-  try {
-    ewcRestoreFetchHook();
-    p.removeEventListener('resize', keepPanelInViewport);
-    if (p.visualViewport) p.visualViewport.removeEventListener('resize', keepPanelInViewport);
-    var ids = ['bp-switch-bubble','bp-switch-panel','bp-confirm-overlay'];
-    ids.forEach(function(id) { var el = p.document.getElementById(id); if (el) el.remove(); });
-    // 清理弹窗（可能在ROOT上）
-    try { var ov = ROOT.document.getElementById('bp-confirm-overlay'); if (ov) ov.remove(); } catch(e) {}
-    // 移除注入的CSS
-    var styles = p.document.head.querySelectorAll('style');
-    styles.forEach(function(s) { if (s.textContent && s.textContent.indexOf('bp-switch-bubble') !== -1) s.remove(); });
-    delete p._daoYuanLoaded;
-  } catch(e) {}
+  if (helperLifetime.signal.aborted) return;
+  helperLifetime.abort();
+  clearInterval(realmWatchTimer);
+  clearInterval(configPollTimer);
+  clearTimeout(_mvuSaveTimer);
+  for (const timer of [petStateTimer, petBubbleTimer, petTransitionTimer, dockTimer]) p.clearTimeout(timer);
+  ewcRestoreFetchHook();
+  for (const node of [bubble, panel, bpConfirmOverlay, CSS, MVU_CSS]) node.remove();
+  delete p._daoYuanLoaded;
 };
-window.addEventListener('pagehide', window._daoYuanCleanup);
-window.addEventListener('beforeunload', window._daoYuanCleanup);
+window.addEventListener('pagehide', window._daoYuanCleanup, { once: true });
+window.addEventListener('beforeunload', window._daoYuanCleanup, { once: true });
+
+await refreshMvuConfigStatus();
+if (!helperLifetime.signal.aborted) {
+  await refreshWorldbookList();
+  if (!helperLifetime.signal.aborted) checkEjsTemplate();
+}
 
 } // end if (!p._daoYuanLoaded)
 
