@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// 道渊 MVU 注入特化 · experiment 2.1
+// 道渊 MVU 注入特化 · experiment 2.1.1
 // ---------------------------------------------------------------
 // 不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步：
 //   1) 把 <status_current_variables> 里的整棵 stat_data 换成"投影"
@@ -18,10 +18,11 @@
 (function () {
   'use strict';
 
-  const VERSION = '2.1.0-experiment';
+  const VERSION = '2.1.1-experiment';
   const TAG = '[道渊EXPR]';
   const MVU_DIAGNOSTIC_EVENT = 'daoyuan_mvu_extra_model_diagnostic';
   const extraAttempts = new Map();
+  const commandCounts = new WeakMap();
   const helperStateBlocks = new Map();
   const MAIN_GENERATIONS = new Set(['normal', 'regenerate', 'swipe', 'continue']);
   let mainRequestPending = false;
@@ -79,21 +80,18 @@
     if (extraAttempts.get(id)?.source !== 'mvu') return;
     extraAttempts.delete(id);
     helperStateBlocks.delete(id);
-    if (data.status === 'accepted') {
-      viewerLog('info', attemptHeader(id) + '输出通过 MVU 解析检查，等待变量写入');
-      return;
-    }
+    if (data.status === 'accepted') return;
+    if (data.status !== 'rejected') return;
     viewerLog('error', attemptHeader(id) + '解析未通过：' + (data.error || '未知错误') +
       '\n完整输出：\n' + responseText(data.response));
   }
 
-  function observeHelperResponse(text, id, reasoning) {
+  function observeHelperResponse(text, id) {
     helperStateBlocks.delete(id);
-    const attempt = extraAttempts.get(id);
-    if (attempt?.source !== 'helper') return;
+    if (extraAttempts.get(id)?.source !== 'helper') return;
     extraAttempts.delete(id);
-    const body = typeof reasoning === 'string' && reasoning ? { content: text, reasoning } : text;
-    viewerLog('info', attemptHeader(id) + '收到完整可见输出，解析和写入由 MVU 决定\n' + responseText(body));
+    const length = typeof text === 'string' ? text.length : 0;
+    viewerLog('info', attemptHeader(id) + '收到回复 ' + length + ' 字');
   }
 
   const CFG = {
@@ -431,6 +429,7 @@
       if (isObj(a) && isObj(b)) {
         const keys = new Set(Object.keys(a).concat(Object.keys(b)));
         keys.forEach((k) => {
+          if (path.length === 0 && k === '$internal') return;
           if (!(k in b)) bucket(group).others.push('移除「' + k + '」');
           else if (!(k in a)) bucket(group).others.push('新增「' + k + '」');
           else walk(a[k], b[k], path.concat(k));
@@ -572,19 +571,23 @@
 
   // ───────────────────────── 更新块捕获 ─────────────────────────
 
-  function captureUpdate(pre, post) {
+  function captureUpdate(next, previous) {
+    const pre = previous?.stat_data;
+    const post = next?.stat_data;
     if (!pre || !post) return;
+    const count = commandCounts.get(next);
+    commandCounts.delete(next);
     const diffs = diffLines(pre, post);
+    const timeChanged = pre.世界?.当前时间 !== post.世界?.当前时间 &&
+      !diffs.some(line => line.startsWith('世界：'));
     window.__DAOYUAN_EXPR_LASTUPDATE = {
       at: new Date().toLocaleTimeString(),
       preTime: pre.世界?.当前时间,
       postTime: post.世界?.当前时间,
       diffs,
     };
-    const commands = window.__DAOYUAN_EXPR_CMDS || [];
-    window.__DAOYUAN_EXPR_CMDS = null;
-    const text = 'MVU 变量结算：' + commands.length + ' 条命令，' + diffs.length + ' 组变化' +
-      (diffs.length ? '\n' + diffs.join('\n') : '');
+    const text = 'MVU 变量结算：' + (count === undefined ? '' : count + ' 条命令，') +
+      (diffs.length + Number(timeChanged)) + ' 组变化';
     window.__DAOYUAN_EXPR_UPDATE = text;
     viewerLog('info', text);
   }
@@ -675,7 +678,6 @@
       window.__DAOYUAN_EXPR_LAST = null;
       window.__DAOYUAN_EXPR_LASTUPDATE = null;
       window.__DAOYUAN_EXPR_UPDATE = null;
-      window.__DAOYUAN_EXPR_CMDS = null;
       window.__DAOYUAN_EXPR_FIX = null;
       resetPresence();
     });
@@ -713,13 +715,13 @@
       const events = typeof Mvu === 'undefined' ? {} : Mvu.events || {};
       if (events.VARIABLE_UPDATE_ENDED) {
         eventOn(events.VARIABLE_UPDATE_ENDED, (next, prev) => {
-          try { captureUpdate(prev?.stat_data, next?.stat_data); }
+          try { captureUpdate(next, prev); }
           catch (e) { viewerLog('error', '变量结算日志失败：' + String(e)); }
         });
       }
       if (events.COMMAND_PARSED) {
-        eventOn(events.COMMAND_PARSED, (_variables, commands) => {
-          window.__DAOYUAN_EXPR_CMDS = Array.isArray(commands) ? commands : [];
+        eventOn(events.COMMAND_PARSED, (variables, commands) => {
+          if (isObj(variables) && Array.isArray(commands)) commandCounts.set(variables, commands.length);
         });
       }
       eventOn(events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update', (context, legacyId) => {

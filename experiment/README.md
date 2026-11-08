@@ -1,6 +1,6 @@
 # experiment · 道渊 MVU 注入特化
 
-版本 2.1.0。对现有角色状态做提示词投影，减少正文模型每轮收到的状态文本。
+版本 2.1.1。对现有角色状态做提示词投影，减少正文模型每轮收到的状态文本。
 
 ## 运行方式
 
@@ -13,7 +13,7 @@ import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@experiment/experiment/道渊
 需要完整的失败诊断时，把这张卡原有的 MVU 脚本内容替换成下面这一行。
 
 ```js
-import 'https://cdn.jsdelivr.net/gh/NLKASHEI/MagVarUpdate@30f532926bd66a7a5499c2146e5d5afb3b5caadf/artifact/bundle.js';
+import 'https://cdn.jsdelivr.net/gh/NLKASHEI/MagVarUpdate@daoyuan-experiment/artifact/bundle.js';
 ```
 
 保存后重新进入聊天。诊断构建与原 MVU 使用同一个局部脚本位。
@@ -26,11 +26,11 @@ import 'https://cdn.jsdelivr.net/gh/NLKASHEI/MagVarUpdate@30f532926bd66a7a5499c2
 
 ## 额外模型日志
 
-酒馆助手的常规生成事件提供完整可见回复。已识别的 MVU 请求按生成编号单独记录，即使没有完整的 `<UpdateVariable>` 标签，也保留整个可见文本。事件不提供独立的工具参数或 Pi/「更多」的实际供应商回复。
+常规 MVU 使用酒馆助手的生成事件，只记录收到的回复字数和变量结算摘要。只有配套诊断版能确认解析失败并以红色日志显示完整回复。
 
 需要完整的解析失败诊断时，配合带 `daoyuan_mvu_extra_model_diagnostic` 事件的 MVU 构建。该事件在 MVU 格式适配之前捕获其收到的结果，并报告本次尝试是否通过解析校验。失败时日志显示完整字符串或工具调用对象，输出不截断。没有收到回复时明确记录没有输出。它记录的是交给 MVU 的模型结果，HTTP 头、密钥、供应商原始传输帧不在记录范围内。
 
-该 MVU 诊断构建基于官方 `d03b7dc`，作为单独的本地构建配对使用。同一张卡只应运行一份 MVU。解析通过和变量写入是两步，查看结算日志可确认后续变化。
+配套构建由 GitHub Actions 每 6 小时检查官方 `beta`。诊断补丁可应用且测试、构建通过时，更新 `daoyuan-experiment`。同一张卡只应运行一份 MVU。解析通过和变量写入是两步，查看结算日志可确认后续变化。
 
 ## 本地验证
 

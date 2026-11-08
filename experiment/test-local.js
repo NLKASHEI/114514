@@ -164,15 +164,16 @@ setTimeout(() => {
   nextState.主角.生命 = (nextState.主角.生命 || 100) - 20;
   nextState.世界.当前时间 = '元会历·3728年·5月16日·15点30分';
 
-  if (handlers.parsed) {
-    handlers.parsed.forEach((f) => f({}, [
-      { type: 'replace', args: ['/世界/当前时间'] },
-      { type: 'delta', args: ['/主角/生命'] },
-    ]));
-  }
-  if (handlers.ended) {
-    handlers.ended.forEach((f) => f({ stat_data: nextState }, { stat_data: cur }));
-  }
+  const nextVariables = { stat_data: { ...nextState, $internal: { temp: true } } };
+  const parsedCommands = [
+    { type: 'replace', args: ['/世界/当前时间'] },
+    { type: 'delta', args: ['/主角/生命'] },
+  ];
+  fire('parsed', nextVariables, parsedCommands);
+  parsedCommands.length = 0;
+  fire('ended', nextVariables, { stat_data: cur });
+  assert.ok(logs.some(log => log.text.endsWith('MVU 变量结算：2 条命令，2 组变化')));
+  assert.ok(!logs.some(log => log.text.includes('$internal')));
   console.log('--- 额外模型输出（更新块）---');
   console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
 
@@ -225,10 +226,15 @@ setTimeout(() => {
   const malformed = '没有闭合的<UpdateVariable>\n' + '甲'.repeat(61000) + '\n末尾完整';
   fire('js_generation_requested', 'legacy', 'generateRaw', { ordered_prompts: [extraMarker] });
   fire('js_generation_ended', malformed, 'legacy');
-  assert.ok(logs.some(log => log.text.endsWith(malformed)));
+  assert.ok(logs.some(log => log.text.endsWith('收到回复 ' + malformed.length + ' 字')));
+  assert.ok(!logs.some(log => log.text.includes(malformed)));
   assert.ok(!logs.some(log => log.text.includes('不属于额外模型')));
 
   const diagnostic = 'daoyuan_mvu_extra_model_diagnostic';
+  fire(diagnostic, { generationId: 'ok', status: 'started' });
+  fire(diagnostic, { generationId: 'ok', status: 'accepted', response: '成功原文不可见' });
+  assert.ok(!logs.some(log => log.text.includes('成功原文不可见')));
+
   const toolResult = { content: malformed, tool_calls: [{ function: { arguments: '{broken' } }] };
   fire(diagnostic, { generationId: 'pi-1', status: 'started' });
   fire('js_generation_requested', 'pi-1', 'generateRaw', { ordered_prompts: [extraMarker] });
