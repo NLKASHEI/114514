@@ -1,33 +1,34 @@
 // ═══════════════════════════════════════════════════════════════
-// 道渊 MVU 注入特化 · experiment 0.1.0
+// 道渊 MVU 注入特化 · experiment 1.0
 // ---------------------------------------------------------------
-// 目标：不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步
-//       把注入给模型的状态换掉，并附一段"上轮净变化 + 时间校验"日志。
+// 不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步：
+//   1) 把 <status_current_variables> 里的整棵 stat_data 换成"投影"
+//   2) 追加 <mvu变量上一轮次修改日志>：时间校验 + 上轮净变化
+//   3) 可选：时间越界时回滚（BEFORE_MESSAGE_UPDATE 钩子）
 //
-// 它替换什么：
-//   1) 任何消息里 <status_current_variables>...</status_current_variables>
-//      内部的内容 → 换成裁剪后的"投影"（YAML）
-//   2) 在同一位置追加 <mvu变量上一轮次修改日志>（时间校验 + 净变化）
+// 投影规则：
+//   - 长文本按字段截断；仙姿/群芳谱/引言不进提示词（状态栏照旧显示）
+//   - 道侣/人物/灵宠/玉简：只在"最近消息或当前地点"出现时全文注入，
+//     否则压成摘要（境界/亲密/关系等），并标 在场: false
+//   - stat_data 本身不动
 //
-// 它不替换什么：
-//   - stat_data 本身不动，状态栏/前端读到的还是完整数据
-//   - MVU 的解析、应用、ZOD 校验全部照旧
-//   - 世界书一条不改（变量列表条目即使关掉，也会走"兜底注入"）
-//
-// 回滚：禁用本脚本即可，行为立刻回到原样。
+// 回滚：禁用脚本即可。
 // ═══════════════════════════════════════════════════════════════
 
 (function () {
   'use strict';
 
-  const VERSION = '0.1.0-experiment';
+  const VERSION = '1.0.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
-    maxText: 28,      // 长文本保留字数
-    yujianKeep: 3,    // 玉简每个好友保留最近几条
-    log: true,        // 是否追加变更日志
-    logMax: 24,       // 单组最多展示多少条差异
+    maxText: 28,          // 长文本默认保留字数
+    yujianKeep: 3,        // 玉简保留最近几条（在场的）
+    log: true,            // 是否追加变更日志
+    logMax: 24,           // 单组最多展示多少条差异
+    presence: true,       // 是否按在场裁剪道侣/人物/灵宠/玉简
+    presenceFloors: 4,    // 往前看几楼判断"在场"
+    timeFix: false,       // 时间越界时是否回滚（实验性，默认关闭）
     debug: true,
   };
 
@@ -36,14 +37,18 @@
   const LOG_CLOSE = '</mvu变量上一轮次修改日志>';
 
   const KEEP_FULL = new Set(['当前时间', '姓名', '性别', '境界', '宗门', '所在界', '灵根']);
-
-  // 这些字段只在状态栏/前端出现，不必每回合塞进提示词
   const DROP_FIELDS = new Set(['仙姿', '群芳谱', '引言']);
-
-  // 字段级截断长度（未列出的走 CFG.maxText）
   const FIELD_LIMIT = {
     外观: 24, 容貌外观: 24, 心声: 24, 描述: 24, 背景: 16, 性格: 10,
     当前地点: 20, 神念: 16, 衣着: 18, 容貌: 18, 身形: 14, 目标: 20,
+  };
+
+  // 不在场时保留的字段
+  const COMPACT_KEEP = {
+    道侣: ['性别', '种族', '境界', '亲密', '状态', '修为'],
+    人物: ['性别', '头衔', '境界', '好感', '关系阶段', '状态'],
+    灵宠: ['性别', '种族', '境界', '亲密度', '状态'],
+    玉简: ['性别', '境界', '关系', '好感度'],
   };
 
   const escRe = (s) => s.replace(/[.*+?^$(){}|[\]\\]/g, (m) => '\\' + m);
@@ -69,8 +74,7 @@
     if (v === null || v === undefined) return 'null';
     if (typeof v === 'number' || typeof v === 'boolean') return String(v);
     const s = String(v);
-    // 只在必要时加引号，能省一点 token
-    const needsQuote = !s || /^[\-?:,\[\]{}#&*!|>'"%@`]/.test(s) || /[:#]\s/.test(s) || /\s$/.test(s) || /[\n\r]/.test(s);
+    const needsQuote = !s || /^[\-?:,\[\]{}#&*!|>'"%@\x60]/.test(s) || /[:#]\s/.test(s) || /\s$/.test(s) || /[\n\r]/.test(s);
     return needsQuote ? JSON.stringify(s) : s;
   }
 
@@ -135,12 +139,7 @@
     if (d < 1 || d > days) return { ok: false, error: y + '年' + mo + '月日期' + d + '越界（1~' + days + '）' };
     if (h > 23 || mi > 59) return { ok: false, error: '时分' + h + ':' + mi + '越界' };
 
-    return {
-      ok: true, era: era,
-      year: y, month: mo, day: d, hour: h, minute: mi,
-      ms: Date.UTC(y, mo - 1, d, h, mi),
-      raw: s,
-    };
+    return { ok: true, era, year: y, month: mo, day: d, hour: h, minute: mi, ms: Date.UTC(y, mo - 1, d, h, mi), raw: s };
   }
 
   function humanGap(ms) {
@@ -153,6 +152,69 @@
     if (hour) parts.push(hour + '小时');
     if (minute && !day) parts.push(minute + '分钟');
     return parts.join('') || '0分钟';
+  }
+
+  // ───────────────────────── 状态读取 ─────────────────────────
+
+  function statOfMessage(msg) {
+    const v = msg && msg.variables;
+    if (!v || typeof v !== 'object') return null;
+    if (isObj(v.stat_data)) return v.stat_data;
+    for (const k of Object.keys(v)) {
+      if (isObj(v[k]) && isObj(v[k].stat_data)) return v[k].stat_data;
+    }
+    return null;
+  }
+
+  function chatList() {
+    return (typeof SillyTavern !== 'undefined' && SillyTavern.chat) || [];
+  }
+
+  function recentStates() {
+    const chat = chatList();
+    const list = [];
+    for (let i = chat.length - 1; i >= 0 && list.length < 2; i--) {
+      const msg = chat[i];
+      if (msg.is_user || msg.is_system) continue;
+      const st = statOfMessage(msg);
+      if (st) list.push(st);
+    }
+    return list;
+  }
+
+  function recentText(floors) {
+    const chat = chatList();
+    const parts = [];
+    for (let i = chat.length - 1; i >= 0 && parts.length < floors; i--) {
+      const m = chat[i];
+      if (!m || typeof m.mes !== 'string') continue;
+      parts.push(m.mes.length > 3000 ? m.mes.slice(-3000) : m.mes);
+    }
+    return parts.join('\n');
+  }
+
+  function latestState() {
+    try {
+      if (typeof Mvu !== 'undefined' && Mvu.getMvuData) {
+        const data = Mvu.getMvuData({ type: 'message', message_id: 'latest' });
+        if (data && isObj(data.stat_data)) return data.stat_data;
+      }
+    } catch (e) { /* 兜底 */ }
+    try {
+      const vars = typeof getVariables === 'function' ? getVariables({ type: 'message', message_id: 'latest' }) : null;
+      if (vars && isObj(vars.stat_data)) return vars.stat_data;
+      if (vars) {
+        for (const k of Object.keys(vars)) {
+          if (isObj(vars[k]) && isObj(vars[k].stat_data)) return vars[k].stat_data;
+        }
+      }
+    } catch (e) { /* 兜底 */ }
+    const chat = chatList();
+    for (let i = chat.length - 1; i >= 0; i--) {
+      const st = statOfMessage(chat[i]);
+      if (st) return st;
+    }
+    return null;
   }
 
   // ───────────────────────── 投影 ─────────────────────────
@@ -169,9 +231,7 @@
       const n = limitOf(key);
       return n === Infinity ? value : truncate(value, n);
     }
-    if (Array.isArray(value)) {
-      return value.map((v) => projectValue('', v)).filter((v) => v !== undefined);
-    }
+    if (Array.isArray(value)) return value.map((v) => projectValue('', v)).filter((v) => v !== undefined);
     if (isObj(value)) {
       const out = {};
       for (const k of Object.keys(value)) {
@@ -183,13 +243,39 @@
     return value;
   }
 
+  function compact(entry, keep) {
+    const out = {};
+    for (const k of keep) if (entry[k] !== undefined) out[k] = projectValue(k, entry[k]);
+    out.在场 = false;
+    return out;
+  }
+
+  function buildContext(stat) {
+    const place = String((stat && stat.世界 && stat.世界.当前地点) || '');
+    const text = CFG.presence ? recentText(CFG.presenceFloors) : '';
+    return {
+      place,
+      hit(name) {
+        if (!CFG.presence) return true;
+        if (!name) return false;
+        return text.indexOf(name) >= 0 || place.indexOf(name) >= 0;
+      },
+    };
+  }
+
   function project(stat) {
+    const ctx = buildContext(stat);
     const out = {};
     for (const key of Object.keys(stat || {})) {
       if (key === '玉简') {
         const friends = {};
         for (const name of Object.keys(stat.玉简 || {})) {
           const f = deepClone(stat.玉简[name] || {});
+          const present = ctx.hit(name);
+          if (!present) {
+            friends[name] = compact(f, COMPACT_KEEP.玉简);
+            continue;
+          }
           if (isObj(f.历史记录)) {
             const keys = Object.keys(f.历史记录);
             const kept = {};
@@ -201,59 +287,24 @@
         out.玉简 = friends;
         continue;
       }
+
+      if (COMPACT_KEEP[key] && isObj(stat[key])) {
+        const section = {};
+        for (const name of Object.keys(stat[key])) {
+          const entry = stat[key][name];
+          if (!isObj(entry)) {
+            section[name] = projectValue(name, entry);
+            continue;
+          }
+          section[name] = ctx.hit(name) ? projectValue('', entry) : compact(entry, COMPACT_KEEP[key]);
+        }
+        out[key] = section;
+        continue;
+      }
+
       out[key] = projectValue(key, stat[key]);
     }
     return out;
-  }
-
-  // ───────────────────────── 状态读取 ─────────────────────────
-
-  function statOfMessage(msg) {
-    const v = msg && msg.variables;
-    if (!v || typeof v !== 'object') return null;
-    if (isObj(v.stat_data)) return v.stat_data;
-    for (const k of Object.keys(v)) {
-      if (isObj(v[k]) && isObj(v[k].stat_data)) return v[k].stat_data;
-    }
-    return null;
-  }
-
-  function latestState() {
-    try {
-      if (typeof Mvu !== 'undefined' && Mvu.getMvuData) {
-        const data = Mvu.getMvuData({ type: 'message', message_id: 'latest' });
-        if (data && isObj(data.stat_data)) return data.stat_data;
-      }
-    } catch (e) { /* 走兜底 */ }
-    try {
-      const vars = typeof getVariables === 'function'
-        ? getVariables({ type: 'message', message_id: 'latest' })
-        : null;
-      if (vars && isObj(vars.stat_data)) return vars.stat_data;
-      if (vars) {
-        for (const k of Object.keys(vars)) {
-          if (isObj(vars[k]) && isObj(vars[k].stat_data)) return vars[k].stat_data;
-        }
-      }
-    } catch (e) { /* 走兜底 */ }
-    const chat = (typeof SillyTavern !== 'undefined' && SillyTavern.chat) || [];
-    for (let i = chat.length - 1; i >= 0; i--) {
-      const st = statOfMessage(chat[i]);
-      if (st) return st;
-    }
-    return null;
-  }
-
-  function recentStates() {
-    const chat = (typeof SillyTavern !== 'undefined' && SillyTavern.chat) || [];
-    const list = [];
-    for (let i = chat.length - 1; i >= 0 && list.length < 2; i--) {
-      const msg = chat[i];
-      if (msg.is_user || msg.is_system) continue;
-      const st = statOfMessage(msg);
-      if (st) list.push(st);
-    }
-    return list;
   }
 
   // ───────────────────────── 差异 ─────────────────────────
@@ -273,13 +324,9 @@
       if (isObj(a) && isObj(b)) {
         const keys = new Set(Object.keys(a).concat(Object.keys(b)));
         keys.forEach((k) => {
-          if (!(k in b)) {
-            bucket(group).others.push('移除「' + k + '」');
-          } else if (!(k in a)) {
-            bucket(group).others.push('新增「' + k + '」');
-          } else {
-            walk(a[k], b[k], path.concat(k));
-          }
+          if (!(k in b)) bucket(group).others.push('移除「' + k + '」');
+          else if (!(k in a)) bucket(group).others.push('新增「' + k + '」');
+          else walk(a[k], b[k], path.concat(k));
         });
         return;
       }
@@ -325,9 +372,8 @@
       lines.push('时间：纪元变更 ' + JSON.stringify(prevTime) + ' → ' + JSON.stringify(curTime) + '。');
     } else {
       const delta = curP.ms - prevP.ms;
-      if (delta > 0) {
-        lines.push('时间：推进' + humanGap(delta) + '。');
-      } else if (delta < 0) {
+      if (delta > 0) lines.push('时间：推进' + humanGap(delta) + '。');
+      else if (delta < 0) {
         lines.push('⚠ /世界/当前时间 回退：' + prevP.raw + ' → ' + curP.raw + '（-' + humanGap(delta) + '）。');
         lines.push('下次更新必须把时间修正为不早于「' + prevP.raw + '」，并按剧情补足应经过的时长。');
       } else if (String(curTime) !== String(prevTime)) {
@@ -337,8 +383,12 @@
       }
     }
 
-    if (previous) lines.push.apply(lines, diffLines(previous, current));
+    if (window.__DAOYUAN_EXPR_FIX) {
+      lines.push('⚠ 上一楼时间越界，已由脚本回滚至「' + window.__DAOYUAN_EXPR_FIX + '」。');
+      window.__DAOYUAN_EXPR_FIX = null;
+    }
 
+    if (previous) lines.push.apply(lines, diffLines(previous, current));
     if (!lines.length) return '';
     return LOG_OPEN + '\n上轮净变化已生效，勿重复执行；此处仅记录变动信息。\n' +
       lines.slice(0, CFG.logMax + 4).join('\n') + '\n' + LOG_CLOSE;
@@ -369,14 +419,12 @@
     const view = buildView();
     if (!view) return;
 
-    // 1) 清掉历史里遗留的日志块
     for (const m of messages) {
       if (m && typeof m.content === 'string' && m.content.indexOf(LOG_OPEN) >= 0) {
         m.content = stripOldLogs(m.content);
       }
     }
 
-    // 2) 替换状态块
     let hit = false;
     for (const m of messages) {
       if (!m || typeof m.content !== 'string') continue;
@@ -390,7 +438,6 @@
       break;
     }
 
-    // 3) 兜底：找不到状态块就插一条 system 消息
     if (!hit) {
       const block = '<status_current_variables>\n' + view.projection + '\n</status_current_variables>' +
         (view.log ? '\n' + view.log : '');
@@ -402,6 +449,41 @@
         (view.raw.length - view.projection.length) + ' 字），日志 ' + view.log.length + ' 字');
     }
     window.__DAOYUAN_EXPR_LAST = view;
+  }
+
+  // ───────────────────────── 时间守卫 ─────────────────────────
+
+  function previousValidTime(beforeId) {
+    const chat = chatList();
+    const start = Math.min(beforeId - 1, chat.length - 1);
+    for (let i = start; i >= 0; i--) {
+      const st = statOfMessage(chat[i]);
+      if (!st || !st.世界) continue;
+      const t = st.世界.当前时间;
+      if (parseTime(t).ok) return t;
+    }
+    return null;
+  }
+
+  function guardTime(variables, messageId) {
+    if (!CFG.timeFix) return;
+    try {
+      const st = variables && variables.stat_data;
+      if (!st || !st.世界) return;
+      const cur = st.世界.当前时间;
+      const curP = parseTime(cur);
+      const prevRaw = previousValidTime(messageId);
+      if (!prevRaw) return;
+      const prevP = parseTime(prevRaw);
+      if (!prevP.ok) return;
+      if (!curP.ok || (curP.ok && curP.era === prevP.era && curP.ms < prevP.ms)) {
+        st.世界.当前时间 = prevRaw;
+        window.__DAOYUAN_EXPR_FIX = prevRaw;
+        console.warn(TAG, '时间越界已回滚：' + JSON.stringify(cur) + ' → ' + prevRaw);
+      }
+    } catch (e) {
+      console.error(TAG, '时间守卫失败', e);
+    }
   }
 
   // ───────────────────────── 挂载 ─────────────────────────
@@ -428,11 +510,28 @@
       try { rewriteRequest(payload); } catch (e) { console.error(TAG, '改写请求失败', e); }
     });
 
-    eventOn(tavern_events.CHAT_CHANGED, () => { window.__DAOYUAN_EXPR_LAST = null; });
+    eventOn(tavern_events.CHAT_CHANGED, () => {
+      window.__DAOYUAN_EXPR_LAST = null;
+      window.__DAOYUAN_EXPR_FIX = null;
+    });
+
+    try {
+      const events = (typeof Mvu !== 'undefined' && Mvu.events) || {};
+      const before = events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update';
+      // 始终挂载，由 CFG.timeFix 决定是否真正生效（方便运行时开关）
+      eventOn(before, (variables, messageId) => guardTime(variables, messageId));
+    } catch (e) {
+      console.warn(TAG, '时间守卫挂载失败（不影响投影）', e);
+    }
 
     window.DaoYuanEXPR = {
       version: VERSION,
       cfg: CFG,
+      set(patch) {
+        Object.assign(CFG, patch || {});
+        console.info(TAG, '配置已更新', CFG);
+        return CFG;
+      },
       preview() {
         const view = buildView();
         if (!view) return null;
