@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.2.0-experiment';
+  const VERSION = '1.3.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -179,7 +179,7 @@
       const msg = chat[i];
       if (msg.is_user || msg.is_system) continue;
       const st = statOfMessage(msg);
-      if (st) list.push(st);
+      if (st) list.push({ id: i, stat: st });
     }
     return list;
   }
@@ -373,7 +373,7 @@
 
   // ───────────────────────── 日志 ─────────────────────────
 
-  function buildLog(current, previous) {
+  function buildLog(current, previous, diffs) {
     const lines = [];
     const curTime = current && current.世界 && current.世界.当前时间;
     const prevTime = previous && previous.世界 && previous.世界.当前时间;
@@ -405,7 +405,7 @@
       window.__DAOYUAN_EXPR_FIX = null;
     }
 
-    if (previous) lines.push.apply(lines, diffLines(previous, current));
+    if (previous) lines.push.apply(lines, diffs || diffLines(previous, current));
     if (!lines.length) return '';
     return LOG_OPEN + '\n上轮净变化已生效，勿重复执行；此处仅记录变动信息。\n' +
       lines.slice(0, CFG.logMax + 4).join('\n') + '\n' + LOG_CLOSE;
@@ -423,10 +423,25 @@
     const current = latestState();
     if (!current) return null;
     const states = recentStates();
-    const previous = states.length > 1 ? states[1] : null;
+    const prevEntry = states.length > 1 ? states[1] : null;
+    const previous = prevEntry ? prevEntry.stat : null;
+    const diffs = previous ? diffLines(previous, current) : [];
     const projection = toYaml(project(current));
-    const log = CFG.log && previous ? buildLog(current, previous) : '';
-    return { projection, log, raw: JSON.stringify(current), current, previous };
+    const log = CFG.log && previous ? buildLog(current, previous, diffs) : '';
+    return {
+      projection,
+      log,
+      raw: JSON.stringify(current),
+      current,
+      previous,
+      diag: {
+        curId: states.length ? states[0].id : -1,
+        prevId: prevEntry ? prevEntry.id : -1,
+        prevTime: previous && previous.世界 ? previous.世界.当前时间 : null,
+        curTime: current && current.世界 ? current.世界.当前时间 : null,
+        diffCount: diffs.length,
+      },
+    };
   }
 
   function rewriteRequest(payload) {
@@ -467,8 +482,10 @@
         (view.raw.length - view.projection.length) + ' 字），日志 ' + view.log.length + ' 字');
     }
     window.__DAOYUAN_EXPR_LAST = view;
-    window.__DAOYUAN_EXPR_REQ = {
+    const isExtra = messages.some((m) => typeof m.content === 'string' && /<UpdateVariable>|JSONPatch/.test(m.content));
+    const snapshot = {
       at: new Date().toLocaleTimeString(),
+      kind: isExtra ? '额外模型' : '主模型',
       total: messages.length,
       chars: messages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : 0), 0),
       messages: messages.map((m) => ({
@@ -476,6 +493,7 @@
         content: typeof m.content === 'string' ? (m.content.length > 60000 ? m.content.slice(0, 60000) + '…' : m.content) : JSON.stringify(m.content),
       })),
     };
+    window.__DAOYUAN_EXPR_REQS = (window.__DAOYUAN_EXPR_REQS || []).concat([snapshot]).slice(-2);
     renderPanel();
   }
 
@@ -537,7 +555,8 @@
 
   function overviewText() {
     const view = window.__DAOYUAN_EXPR_LAST;
-    const req = window.__DAOYUAN_EXPR_REQ;
+    const reqs = window.__DAOYUAN_EXPR_REQS || [];
+    const req = reqs.length ? reqs[reqs.length - 1] : null;
     const out = window.__DAOYUAN_EXPR_OUT;
     const curTime = view && view.current && view.current.世界 && view.current.世界.当前时间;
     const parsed = parseTime(curTime);
@@ -547,6 +566,10 @@
       ' 字（省 ' + (view ? view.raw.length - view.projection.length : 0) + '），日志 ' + (view ? view.log.length : 0) + ' 字');
     lines.push('在场：' + (presentNames().join('、') || '(无)'));
     lines.push('时间：' + JSON.stringify(curTime) + ' → ' + (parsed.ok ? '解析成功（' + parsed.year + '-' + parsed.month + '-' + parsed.day + ' ' + parsed.hour + ':' + parsed.minute + '）' : '解析失败：' + parsed.error));
+    const diag = view && view.diag;
+    if (diag) {
+      lines.push('对比：# ' + diag.prevId + ' → # ' + diag.curId + '，上一楼时间 ' + JSON.stringify(diag.prevTime) + '，净变化 ' + diag.diffCount + ' 组' + (diag.diffCount ? '' : '（该轮状态无差异）'));
+    }
     lines.push('请求：' + (req ? req.total + ' 条消息 / ' + req.chars + ' 字（' + req.at + '）' : '(无)'));
     lines.push('输出：' + (out ? out.at + '，第 ' + out.id + ' 楼，' + out.text.length + ' 字' : '(无)'));
     return lines.join('\n');
@@ -560,9 +583,12 @@
   }
 
   function buildRequest() {
-    const req = window.__DAOYUAN_EXPR_REQ;
-    if (!req) return '';
-    return req.messages.map((m) => '[' + m.role + '] ' + m.content).join('\n\n————————————\n\n');
+    const list = window.__DAOYUAN_EXPR_REQS || [];
+    if (!list.length) return '';
+    return list.map((req) => {
+      const head = '#### ' + req.kind + '请求 · ' + req.at + ' · ' + req.total + ' 条 / ' + req.chars + ' 字';
+      return head + '\n\n' + req.messages.map((m) => '[' + m.role + '] ' + m.content).join('\n\n————————————\n\n');
+    }).join('\n\n════════════════════\n\n');
   }
 
   function buildOutput() {
@@ -605,6 +631,72 @@
     } catch (e) {
       console.error(TAG, '复制失败', e);
     }
+  }
+
+  function downloadText(name, text) {
+    const doc = panelDoc();
+    try {
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = doc.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.style.cssText = 'display:none;';
+      doc.body.appendChild(a);
+      a.click();
+      doc.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if (window.__DAOYUAN_EXPR_STATUS) window.__DAOYUAN_EXPR_STATUS.textContent = '已导出 ' + name;
+      return true;
+    } catch (e) {
+      console.warn(TAG, '下载失败，改用文本框', e);
+      showTextModal(name, text);
+      return false;
+    }
+  }
+
+  function showTextModal(name, text) {
+    const doc = panelDoc();
+    const old = doc.getElementById('dao-yuan-expr-modal');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    const mask = doc.createElement('div');
+    mask.id = 'dao-yuan-expr-modal';
+    mask.style.cssText = 'position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.66);display:flex;align-items:center;justify-content:center;';
+
+    const box = doc.createElement('div');
+    box.style.cssText = 'width:min(900px,92vw);height:78vh;background:#141a21;border:1px solid #3a4757;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;';
+
+    const bar = doc.createElement('div');
+    bar.style.cssText = 'display:flex;gap:8px;align-items:center;color:#9fd0ff;font:12px Consolas,monospace;';
+
+    const title = doc.createElement('span');
+    title.textContent = name + ' · ' + text.length + ' 字（Ctrl+A 全选，Ctrl+C 复制）';
+    title.style.cssText = 'flex:1;';
+
+    const close = doc.createElement('button');
+    close.textContent = '关闭';
+    close.style.cssText = 'all:unset;cursor:pointer;padding:3px 10px;border-radius:4px;background:#22303f;color:#9fd0ff;border:1px solid #33455a;';
+    close.addEventListener('click', () => mask.parentNode && mask.parentNode.removeChild(mask));
+
+    const ta = doc.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'flex:1;width:100%;background:#0d1218;color:#c9d6e4;border:1px solid #263341;border-radius:6px;padding:8px;font:12px/1.5 Consolas,monospace;white-space:pre;';
+    ta.addEventListener('click', () => ta.select());
+
+    bar.appendChild(title);
+    bar.appendChild(close);
+    box.appendChild(bar);
+    box.appendChild(ta);
+    mask.appendChild(box);
+    doc.body.appendChild(mask);
+    ta.focus();
+    ta.select();
+  }
+
+  function exportAll() {
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    return downloadText('道渊EXPR-' + stamp + '.txt', buildDump());
   }
 
   function section(title, text, open) {
@@ -665,10 +757,11 @@
     const content = doc.createElement('div');
     content.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
 
+    tools.appendChild(mkBtn('导出全部', () => exportAll()));
+    tools.appendChild(mkBtn('导出请求', () => downloadText('道渊EXPR-请求.txt', buildRequest())));
+    tools.appendChild(mkBtn('导出输出', () => downloadText('道渊EXPR-输出.txt', buildOutput())));
     tools.appendChild(mkBtn('复制全部', () => copyText(buildDump())));
-    tools.appendChild(mkBtn('复制注入', () => copyText(buildInjection())));
-    tools.appendChild(mkBtn('复制请求', () => copyText(buildRequest())));
-    tools.appendChild(mkBtn('复制输出', () => copyText(buildOutput())));
+    tools.appendChild(mkBtn('文本框', () => showTextModal('道渊EXPR', buildDump())));
     tools.appendChild(mkBtn('刷新', () => renderPanel()));
     tools.appendChild(status);
 
@@ -719,7 +812,7 @@
 
     eventOn(tavern_events.CHAT_CHANGED, () => {
       window.__DAOYUAN_EXPR_LAST = null;
-      window.__DAOYUAN_EXPR_REQ = null;
+      window.__DAOYUAN_EXPR_REQS = [];
       window.__DAOYUAN_EXPR_FIX = null;
       resetPresence();
     });
@@ -777,6 +870,13 @@
       },
       dump() {
         return buildDump();
+      },
+      exportAll() {
+        return exportAll();
+      },
+      exportRequest() {
+        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        return downloadText('道渊EXPR-请求-' + stamp + '.txt', buildRequest());
       },
       preview() {
         const view = buildView();
