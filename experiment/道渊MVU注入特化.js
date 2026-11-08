@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// 道渊 MVU 注入特化 · experiment 2.1.1
+// 道渊 MVU 注入特化 · experiment 2.1.2
 // ---------------------------------------------------------------
 // 不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步：
 //   1) 把 <status_current_variables> 里的整棵 stat_data 换成"投影"
@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '2.1.1-experiment';
+  const VERSION = '2.1.2-experiment';
   const TAG = '[道渊EXPR]';
   const MVU_DIAGNOSTIC_EVENT = 'daoyuan_mvu_extra_model_diagnostic';
   const extraAttempts = new Map();
@@ -26,6 +26,7 @@
   const helperStateBlocks = new Map();
   const MAIN_GENERATIONS = new Set(['normal', 'regenerate', 'swipe', 'continue']);
   let mainRequestPending = false;
+  let projectionSummary = null;
 
   function viewerLog(level, message) {
     try {
@@ -540,10 +541,16 @@
     const targets = messages.filter((m) => m?.role === 'system' &&
       typeof m.content === 'string' && m.content.includes('【以下内容仅供参考，严禁出现在正文！】') &&
       m.content.includes('【以上内容仅供参考，严禁出现在正文！】') && STATUS_RE.test(m.content));
-    if (targets.length !== 1) return;
+    if (targets.length !== 1) {
+      projectionSummary = targets.length ? '找到多个道渊状态块' : '未找到道渊状态块';
+      return;
+    }
     const [target] = targets;
     const blocks = [...target.content.matchAll(new RegExp(STATUS_RE.source, 'g'))];
-    if (blocks.length !== 1) return;
+    if (blocks.length !== 1) {
+      projectionSummary = '找到多个道渊状态块';
+      return;
+    }
     const originalBlock = blocks[0][0];
     const helper = [...helperStateBlocks].find(([, states]) => states.includes(originalBlock));
     if (helper) {
@@ -554,19 +561,28 @@
     mainRequestPending = false;
     presenceTurn += 1;
     const view = buildView();
-    if (!view) return;
+    if (!view) {
+      projectionSummary = '未读取到角色状态';
+      return;
+    }
     const projection = '<status_current_variables>\n' + view.projection + '\n</status_current_variables>';
     const replacement = projection + (view.log ? '\n' + view.log : '');
     window.__DAOYUAN_EXPR_LAST = view;
     if (replacement.length >= originalBlock.length) {
-      viewerLog('info', '正文状态原样发送：投影未减少字数');
+      projectionSummary = '投影未减少字数';
+      viewerLog('info', '正文状态原样发送：' + projectionSummary);
       return;
     }
     // 替换函数保留角色数据中 $&、$' 等字面文本。
     target.content = stripOldLogs(target.content).replace(STATUS_RE, () => replacement);
     window.__DAOYUAN_EXPR_FIX = null;
-    viewerLog('info', '正文状态投影：' + originalBlock.length + ' → ' + replacement.length +
-      ' 字，减少 ' + (originalBlock.length - replacement.length) + ' 字');
+    projectionSummary = { before: originalBlock.length, after: replacement.length };
+    viewerLog('info', '正文状态投影：' + formatProjectionSummary(projectionSummary));
+  }
+
+  function formatProjectionSummary(result) {
+    if (!isObj(result)) return '节省 0 字（' + (result ?? '本次没有正文请求记录') + '）';
+    return result.before + ' → ' + result.after + ' 字，节省 ' + (result.before - result.after) + ' 字';
   }
 
   // ───────────────────────── 更新块捕获 ─────────────────────────
@@ -587,7 +603,9 @@
       diffs,
     };
     const text = 'MVU 变量结算：' + (count === undefined ? '' : count + ' 条命令，') +
-      (diffs.length + Number(timeChanged)) + ' 组变化';
+      (diffs.length + Number(timeChanged)) + ' 组变化 ｜ 正文状态压缩：' +
+      formatProjectionSummary(projectionSummary);
+    projectionSummary = null;
     window.__DAOYUAN_EXPR_UPDATE = text;
     viewerLog('info', text);
   }
@@ -645,21 +663,30 @@
     window.__DAOYUAN_EXPR_LOADED__ = true;
 
     eventOn(tavern_events.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', (type, _options, dryRun) => {
-      if (!dryRun && MAIN_GENERATIONS.has(type)) mainRequestPending = true;
+      if (!dryRun && MAIN_GENERATIONS.has(type)) {
+        mainRequestPending = true;
+        projectionSummary = '未经过正文请求钩子';
+      }
     });
     if (tavern_events.GENERATION_ENDED) {
       eventOn(tavern_events.GENERATION_ENDED, () => { mainRequestPending = false; });
     }
     eventOn(tavern_events.CHAT_COMPLETION_SETTINGS_READY, (payload) => {
       try { rewriteRequest(payload); }
-      catch (e) { viewerLog('error', '状态投影失败：' + String(e)); }
+      catch (e) {
+        projectionSummary = '状态投影失败';
+        viewerLog('error', '状态投影失败：' + String(e));
+      }
     });
     eventOn(MVU_DIAGNOSTIC_EVENT, observeMvuAttempt);
     eventOn('js_generation_requested', registerAttempt);
     eventOn('js_generation_ended', observeHelperResponse);
     if (tavern_events.GENERATION_STOPPED) {
       eventOn(tavern_events.GENERATION_STOPPED, (id) => {
-        if (typeof id !== 'string') mainRequestPending = false;
+        if (typeof id !== 'string') {
+          mainRequestPending = false;
+          projectionSummary = null;
+        }
         helperStateBlocks.delete(id);
         const attempt = extraAttempts.get(id);
         if (!attempt || attempt.source === 'mvu') return;
@@ -675,6 +702,7 @@
       extraAttempts.clear();
       helperStateBlocks.clear();
       mainRequestPending = false;
+      projectionSummary = null;
       window.__DAOYUAN_EXPR_LAST = null;
       window.__DAOYUAN_EXPR_LASTUPDATE = null;
       window.__DAOYUAN_EXPR_UPDATE = null;

@@ -172,7 +172,13 @@ setTimeout(() => {
   fire('parsed', nextVariables, parsedCommands);
   parsedCommands.length = 0;
   fire('ended', nextVariables, { stat_data: cur });
-  assert.ok(logs.some(log => log.text.endsWith('MVU 变量结算：2 条命令，2 组变化')));
+  const payloadBlockLength = text => text.match(/<status_current_variables>[\s\S]*?<\/status_current_variables>/)[0].length;
+  const beforeChars = payloadBlockLength(stateBlock);
+  const afterChars = payloadBlockLength(t4);
+  assert.ok(logs.some(log => log.text.endsWith('MVU 变量结算：2 条命令，2 组变化 ｜ 正文状态压缩：' +
+    beforeChars + ' → ' + afterChars + ' 字，节省 ' + (beforeChars - afterChars) + ' 字')));
+  fire('ended', nextVariables, { stat_data: cur });
+  assert.ok(logs.at(-1).text.endsWith('节省 0 字（本次没有正文请求记录）'));
   assert.ok(!logs.some(log => log.text.includes('$internal')));
   console.log('--- 额外模型输出（更新块）---');
   console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
@@ -184,12 +190,14 @@ setTimeout(() => {
   console.log('--- 落地更新后的日志 ---');
   console.log(logBlock || '(无)');
   if (!file) assert.match(logBlock, /生命-20/);
-  assert.match(ctx.window.DaoYuanEXPR.update(), /2 条命令/);
+  assert.match(ctx.window.DaoYuanEXPR.update(), /正文状态压缩/);
 
   const messagesWithoutState = [{ role: 'system', content: '记忆插件请求' }];
   fire('main', 'normal', {}, false);
   fire('ready', { messages: messagesWithoutState });
   assert.equal(messagesWithoutState.length, 1);
+  fire('ended', nextVariables, { stat_data: cur });
+  assert.ok(logs.at(-1).text.endsWith('节省 0 字（未找到道渊状态块）'));
 
   const extraMarker = { role: 'system', content: '<past_observe>' };
   const extraMessages = [{ role: 'system', content: stateBlock }, extraMarker];
