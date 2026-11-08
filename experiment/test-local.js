@@ -55,6 +55,9 @@ const ctx = {
   SillyTavern: { chat },
   Mvu: { getMvuData: () => ({ stat_data: cur }), events: { BEFORE_MESSAGE_UPDATE: 'before' } },
   getVariables: () => ({ stat_data: cur }),
+  document: { body: null, getElementById: () => null },
+  navigator: {},
+  setTimeout,
 };
 ctx.window = ctx;
 vm.createContext(ctx);

@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.1.0-experiment';
+  const VERSION = '1.2.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -31,6 +31,7 @@
     presenceHold: 2,      // 上一轮在场的人，继续保持全文几轮（防"刚做完就失忆"）
     timeFix: false,       // 时间越界时是否回滚（实验性，默认关闭）
     debug: true,
+    debugPanel: true,     // 左下角调试面板
   };
 
   const STATUS_RE = /<status_current_variables>[\s\S]*?<\/status_current_variables>/;
@@ -466,6 +467,16 @@
         (view.raw.length - view.projection.length) + ' 字），日志 ' + view.log.length + ' 字');
     }
     window.__DAOYUAN_EXPR_LAST = view;
+    window.__DAOYUAN_EXPR_REQ = {
+      at: new Date().toLocaleTimeString(),
+      total: messages.length,
+      chars: messages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : 0), 0),
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: typeof m.content === 'string' ? (m.content.length > 60000 ? m.content.slice(0, 60000) + '…' : m.content) : JSON.stringify(m.content),
+      })),
+    };
+    renderPanel();
   }
 
   // ───────────────────────── 时间守卫 ─────────────────────────
@@ -503,6 +514,185 @@
     }
   }
 
+  // ───────────────────────── 调试面板 ─────────────────────────
+
+  const PANEL_ID = 'dao-yuan-expr-panel';
+
+  function panelDoc() {
+    try {
+      if (window.parent && window.parent !== window && window.parent.document && window.parent.document.body) {
+        return window.parent.document;
+      }
+    } catch (e) { /* 跨域：退回自身文档 */ }
+    return document;
+  }
+
+  function presentNames() {
+    const names = [];
+    presenceSeen.forEach((turn, name) => {
+      if (presenceTurn - turn <= CFG.presenceHold) names.push(name);
+    });
+    return names;
+  }
+
+  function overviewText() {
+    const view = window.__DAOYUAN_EXPR_LAST;
+    const req = window.__DAOYUAN_EXPR_REQ;
+    const out = window.__DAOYUAN_EXPR_OUT;
+    const curTime = view && view.current && view.current.世界 && view.current.世界.当前时间;
+    const parsed = parseTime(curTime);
+    const lines = [];
+    lines.push(TAG + ' v' + VERSION);
+    lines.push('状态：原始 ' + (view ? view.raw.length : 0) + ' 字 → 投影 ' + (view ? view.projection.length : 0) +
+      ' 字（省 ' + (view ? view.raw.length - view.projection.length : 0) + '），日志 ' + (view ? view.log.length : 0) + ' 字');
+    lines.push('在场：' + (presentNames().join('、') || '(无)'));
+    lines.push('时间：' + JSON.stringify(curTime) + ' → ' + (parsed.ok ? '解析成功（' + parsed.year + '-' + parsed.month + '-' + parsed.day + ' ' + parsed.hour + ':' + parsed.minute + '）' : '解析失败：' + parsed.error));
+    lines.push('请求：' + (req ? req.total + ' 条消息 / ' + req.chars + ' 字（' + req.at + '）' : '(无)'));
+    lines.push('输出：' + (out ? out.at + '，第 ' + out.id + ' 楼，' + out.text.length + ' 字' : '(无)'));
+    return lines.join('\n');
+  }
+
+  function buildInjection() {
+    const view = window.__DAOYUAN_EXPR_LAST;
+    if (!view) return '';
+    return '<status_current_variables>\n' + view.projection + '\n</status_current_variables>' +
+      (view.log ? '\n' + view.log : '');
+  }
+
+  function buildRequest() {
+    const req = window.__DAOYUAN_EXPR_REQ;
+    if (!req) return '';
+    return req.messages.map((m) => '[' + m.role + '] ' + m.content).join('\n\n————————————\n\n');
+  }
+
+  function buildOutput() {
+    const out = window.__DAOYUAN_EXPR_OUT;
+    return out ? out.text : '';
+  }
+
+  function buildDump() {
+    return [
+      '### 概览\n' + overviewText(),
+      '### 注入给模型的变量块\n' + (buildInjection() || '(空)'),
+      '### 请求体\n' + (buildRequest() || '(空)'),
+      '### 输出体\n' + (buildOutput() || '(空)'),
+    ].join('\n\n');
+  }
+
+  function copyText(text) {
+    if (!text) return;
+    const done = (msg) => {
+      if (window.__DAOYUAN_EXPR_STATUS) window.__DAOYUAN_EXPR_STATUS.textContent = msg;
+      console.info(TAG, msg);
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+        done('已复制 ' + text.length + ' 字');
+        return;
+      }
+    } catch (e) { /* 走兜底 */ }
+    try {
+      const doc = panelDoc();
+      const ta = doc.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
+      doc.body.appendChild(ta);
+      ta.select();
+      doc.execCommand('copy');
+      doc.body.removeChild(ta);
+      done('已复制 ' + text.length + ' 字');
+    } catch (e) {
+      console.error(TAG, '复制失败', e);
+    }
+  }
+
+  function section(title, text, open) {
+    const doc = panelDoc();
+    const det = doc.createElement('details');
+    det.open = !!open;
+    const sum = doc.createElement('summary');
+    sum.textContent = title + '（' + (text ? text.length : 0) + ' 字）';
+    sum.style.cssText = 'cursor:pointer;color:#7fb7e6;padding:2px 0;';
+    const pre = doc.createElement('pre');
+    pre.textContent = text || '(空)';
+    pre.style.cssText = 'white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;background:#0d1218;border:1px solid #263341;border-radius:6px;padding:6px;margin:4px 0 0;color:#c9d6e4;';
+    det.appendChild(sum);
+    det.appendChild(pre);
+    return det;
+  }
+
+  function renderPanel() {
+    const host = window.__DAOYUAN_EXPR_PANEL;
+    if (!host) return;
+    const c = host.content;
+    while (c.firstChild) c.removeChild(c.firstChild);
+    c.appendChild(section('概览', overviewText(), true));
+    c.appendChild(section('注入给模型的变量块', buildInjection(), false));
+    c.appendChild(section('请求体（实际发出的消息）', buildRequest(), false));
+    c.appendChild(section('输出体（最近一条 AI 回复）', buildOutput(), false));
+  }
+
+  function initPanel() {
+    if (!CFG.debugPanel) return;
+    const doc = panelDoc();
+    if (!doc || !doc.body) return;
+    const old = doc.getElementById(PANEL_ID);
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+
+    const wrap = doc.createElement('div');
+    wrap.id = PANEL_ID;
+    wrap.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483000;font:12px/1.55 Consolas,Menlo,monospace;color:#d8e0ea;text-align:left;';
+
+    const body = doc.createElement('div');
+    body.style.cssText = 'display:none;width:min(780px,88vw);max-height:78vh;overflow:auto;background:#141a21;border:1px solid #3a4757;border-radius:8px;margin-bottom:6px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.5);';
+
+    const tools = doc.createElement('div');
+    tools.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center;';
+
+    const mkBtn = (label, fn) => {
+      const b = doc.createElement('button');
+      b.textContent = label;
+      b.style.cssText = 'all:unset;cursor:pointer;padding:3px 8px;border-radius:4px;background:#22303f;color:#9fd0ff;border:1px solid #33455a;';
+      b.addEventListener('click', fn);
+      return b;
+    };
+
+    const status = doc.createElement('span');
+    status.style.cssText = 'color:#6f8fa8;margin-left:4px;';
+    window.__DAOYUAN_EXPR_STATUS = status;
+
+    const content = doc.createElement('div');
+    content.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
+
+    tools.appendChild(mkBtn('复制全部', () => copyText(buildDump())));
+    tools.appendChild(mkBtn('复制注入', () => copyText(buildInjection())));
+    tools.appendChild(mkBtn('复制请求', () => copyText(buildRequest())));
+    tools.appendChild(mkBtn('复制输出', () => copyText(buildOutput())));
+    tools.appendChild(mkBtn('刷新', () => renderPanel()));
+    tools.appendChild(status);
+
+    body.appendChild(tools);
+    body.appendChild(content);
+
+    const btn = doc.createElement('button');
+    btn.textContent = '道渊EXPR';
+    btn.style.cssText = 'all:unset;cursor:pointer;padding:5px 10px;border-radius:6px;background:#1f2731;border:1px solid #3a4757;color:#9fd0ff;opacity:.85;';
+
+    wrap.appendChild(body);
+    wrap.appendChild(btn);
+    doc.body.appendChild(wrap);
+
+    btn.addEventListener('click', () => {
+      const open = body.style.display !== 'none';
+      body.style.display = open ? 'none' : 'block';
+      if (!open) renderPanel();
+    });
+
+    window.__DAOYUAN_EXPR_PANEL = { body, content };
+    renderPanel();
+  }
+
   // ───────────────────────── 挂载 ─────────────────────────
 
   (async function boot() {
@@ -529,9 +719,34 @@
 
     eventOn(tavern_events.CHAT_CHANGED, () => {
       window.__DAOYUAN_EXPR_LAST = null;
+      window.__DAOYUAN_EXPR_REQ = null;
       window.__DAOYUAN_EXPR_FIX = null;
       resetPresence();
     });
+
+    // 抓最近一条 AI 回复（含 <UpdateVariable> 原文），给面板用
+    try {
+      if (tavern_events.MESSAGE_RECEIVED) {
+        eventOn(tavern_events.MESSAGE_RECEIVED, (id) => {
+          try {
+            const chat = chatList();
+            const msg = chat[id];
+            if (!msg || msg.is_user) return;
+            const text = String(msg.mes || '');
+            const upd = (text.match(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/i) || [''])[0];
+            window.__DAOYUAN_EXPR_OUT = {
+              at: new Date().toLocaleTimeString(),
+              id: id,
+              text: text,
+              patch: upd,
+            };
+            renderPanel();
+          } catch (e) { /* 忽略 */ }
+        });
+      }
+    } catch (e) {
+      console.warn(TAG, '输出捕获失败', e);
+    }
 
     try {
       const events = (typeof Mvu !== 'undefined' && Mvu.events) || {};
@@ -551,11 +766,17 @@
         return CFG;
       },
       who() {
-        const names = [];
-        presenceSeen.forEach((turn, name) => {
-          if (presenceTurn - turn <= CFG.presenceHold) names.push(name);
-        });
-        return names;
+        return presentNames();
+      },
+      panel(open) {
+        const host = window.__DAOYUAN_EXPR_PANEL;
+        if (!host) return null;
+        host.body.style.display = open === false ? 'none' : 'block';
+        renderPanel();
+        return buildDump();
+      },
+      dump() {
+        return buildDump();
       },
       preview() {
         const view = buildView();
@@ -575,6 +796,13 @@
         };
       },
     };
+
+    try {
+      initPanel();
+    } catch (e) {
+      console.warn(TAG, '面板初始化失败', e);
+      setTimeout(() => { try { initPanel(); } catch (e2) { /* 放弃 */ } }, 1500);
+    }
 
     console.info(TAG, '已挂载 v' + VERSION, CFG);
   })();

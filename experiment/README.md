@@ -1,6 +1,6 @@
 # experiment · 道渊 MVU 注入特化
 
-> 分支：`experiment` · 版本：1.1.0
+> 分支：`experiment` · 版本：1.2.0
 > 实验性：不改世界书、不改 MVU、不改 ZOD。禁用脚本 = 完全回滚。
 
 ## 它做什么
@@ -92,16 +92,32 @@ DaoYuanEXPR.set({ timeFix: true })         // 打开时间回滚（实验性）
 | `presenceFloors` | 4 | 往前看几楼判断在场 |
 | `presenceHold` | 2 | 出场后继续保持全文几轮 |
 | `timeFix` | false | 时间越界时是否回滚 |
+| `debugPanel` | true | 左下角调试面板 |
 
 字段规则：`DROP_FIELDS` = 仙姿 / 群芳谱 / 引言（不进提示词，状态栏照旧显示）；
 `FIELD_LIMIT` = 外观 24 / 心声 24 / 背景 16 / 描述 24 / 性格 10 …
 
-## 调试
+## 调试面板
+
+装好后**左下角**会出现一个小按钮「道渊EXPR」，点开是四块内容：
+
+| 区块 | 内容 |
+| --- | --- |
+| 概览 | 字数账、在场名单、时间解析结果、请求/输出状态 |
+| 注入给模型的变量块 | 实际替换进去的投影 + 日志全文 |
+| 请求体 | **真正发给 API 的全部消息**（含系统提示、世界书、历史） |
+| 输出体 | 最近一条 AI 回复全文，含 `<UpdateVariable>` 原文 |
+
+每块右下角有「复制」按钮，也可以一次「复制全部」——出问题时把这份贴给作者就行。
+
+控制台接口：
 
 ```js
 DaoYuanEXPR.stats()     // { raw, projection, log, saved }
 DaoYuanEXPR.preview()   // 打印本轮投影与日志
 DaoYuanEXPR.who()       // 当前被判定为"在场"的名字
+DaoYuanEXPR.dump()      // 返回面板里的完整文本（可复制）
+DaoYuanEXPR.panel()     // 打开面板
 ```
 
 控制台每回合会打：`[道渊EXPR] 投影 3995 字（原始 6831 字，省 2836 字），日志 332 字`
