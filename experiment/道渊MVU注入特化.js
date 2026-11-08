@@ -18,16 +18,18 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.6.0-experiment';
+  const VERSION = '2.0.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
     maxText: 28,          // 长文本默认保留字数
+    maxTextIdle: 12,      // 在场但没被提到时的描写保留字数
     yujianKeep: 3,        // 玉简保留最近几条（在场的）
     log: true,            // 是否追加变更日志
     logMax: 24,           // 单组最多展示多少条差异
     presence: true,       // 是否按在场裁剪道侣/人物/灵宠/玉简
     presenceFloors: 4,    // 往前看几楼判断"在场"
+    activeFloors: 2,      // 往前看几楼算"正在被写"（描写保留更长）
     presenceHold: 2,      // 上一轮在场的人，继续保持全文几轮（防"刚做完就失忆"）
     timeFix: false,       // 时间越界时是否回滚（实验性，默认关闭）
     debug: true,
@@ -40,9 +42,14 @@
 
   const KEEP_FULL = new Set(['当前时间', '姓名', '性别', '境界', '宗门', '所在界', '灵根']);
   const DROP_FIELDS = new Set(['仙姿', '群芳谱', '引言']);
+  // 描写类字段：活跃 24 字，在场但没被提到 12 字，不在场整段删
+  // [活跃时, 在场但没被提到时]
+  const DESC_LIMITS = {
+    外观: [24, 12], 容貌外观: [24, 12], 心声: [24, 12], 背景: [16, 8], 性格: [10, 6],
+  };
+
   const FIELD_LIMIT = {
-    外观: 24, 容貌外观: 24, 心声: 24, 描述: 24, 背景: 16, 性格: 10,
-    当前地点: 20, 神念: 16, 衣着: 18, 容貌: 18, 身形: 14, 目标: 20,
+    描述: 20, 当前地点: 16, 神念: 12, 衣着: 14, 容貌: 14, 身形: 12, 目标: 12, 状态: 12, 效果: 16,
   };
 
   // 不在场时保留的字段
@@ -221,23 +228,27 @@
 
   // ───────────────────────── 投影 ─────────────────────────
 
-  function limitOf(key) {
+  function limitOf(key, tier) {
     if (KEEP_FULL.has(key)) return Infinity;
+    if (Object.prototype.hasOwnProperty.call(DESC_LIMITS, key)) {
+      const pair = DESC_LIMITS[key];
+      return tier === 'present' ? pair[1] : pair[0];
+    }
     if (Object.prototype.hasOwnProperty.call(FIELD_LIMIT, key)) return FIELD_LIMIT[key];
     return CFG.maxText;
   }
 
-  function projectValue(key, value) {
+  function projectValue(key, value, tier) {
     if (DROP_FIELDS.has(key)) return undefined;
     if (typeof value === 'string') {
-      const n = limitOf(key);
+      const n = limitOf(key, tier);
       return n === Infinity ? value : truncate(value, n);
     }
     if (Array.isArray(value)) return value.map((v) => projectValue('', v)).filter((v) => v !== undefined);
     if (isObj(value)) {
       const out = {};
       for (const k of Object.keys(value)) {
-        const pv = projectValue(k, value[k]);
+        const pv = projectValue(k, value[k], tier);
         if (pv !== undefined) out[k] = pv;
       }
       return out;
@@ -264,8 +275,13 @@
   function buildContext(stat) {
     const place = String((stat && stat.世界 && stat.世界.当前地点) || '');
     const text = CFG.presence ? recentText(CFG.presenceFloors) : '';
+    const hotText = CFG.presence ? recentText(CFG.activeFloors) : '';
     return {
       place,
+      hot(name) {
+        if (!CFG.presence) return true;
+        return !!name && hotText.indexOf(name) >= 0;
+      },
       hit(name) {
         if (!CFG.presence) return true;
         if (!name) return false;
@@ -299,7 +315,7 @@
             for (const k of keys.slice(Math.max(0, keys.length - CFG.yujianKeep))) kept[k] = f.历史记录[k];
             f.历史记录 = kept;
           }
-          friends[name] = projectValue('', f);
+          friends[name] = projectValue('', f, ctx.hot(name) ? 'active' : 'present');
         }
         out.玉简 = friends;
         continue;
@@ -313,7 +329,9 @@
             section[name] = projectValue(name, entry);
             continue;
           }
-          section[name] = ctx.hit(name) ? projectValue('', entry) : compact(entry, COMPACT_KEEP[key]);
+          section[name] = ctx.hit(name)
+            ? projectValue('', entry, ctx.hot(name) ? 'active' : 'present')
+            : compact(entry, COMPACT_KEEP[key]);
         }
         out[key] = section;
         continue;
