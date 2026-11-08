@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.6';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.6';
+const DAOYUAN_VERSION = '1.4.7';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.7';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -49,7 +49,7 @@ if (oldBubble) oldBubble.remove();
 // iframe 中的异步 API（getWorldbook/updateWorldbookWith）调用会因
 // 请求上下文问题失败。解决办法：往父页面注入 <script> 标签，
 // 在父页面原生上下文中执行操作，结果通过 CustomEvent 回传。
-function runInParent(fnString, timeoutMs = 0) {
+function runInParent(fnString, timeoutMs = 15000) {
   return new Promise((resolve, reject) => {
     const token = 'bp_' + Date.now() + '_' + Math.random().toString(36).slice(2);
     const handler = (e) => {
@@ -62,7 +62,7 @@ function runInParent(fnString, timeoutMs = 0) {
     p.document.addEventListener('bp-result', handler);
     const timer = timeoutMs > 0 ? setTimeout(() => {
       p.document.removeEventListener('bp-result', handler);
-      reject(new Error('父页面未返回配置应用结果'));
+      reject(new Error('酒馆助手返回结果超时，请刷新后核对操作状态'));
     }, timeoutMs) : null;
 
     const script = p.document.createElement('script');
@@ -1334,6 +1334,11 @@ function fillExtraModelOptions(select, ids) {
   select.replaceChildren(options);
 }
 
+function supportsMvuMinRequestLength(settings) {
+  // 新版 MVU 同时提供触发标签。旧配置可能已被小助手写入字数字段，不能用它判断支持情况。
+  return typeof settings?.触发标签 === 'string';
+}
+
 function isAutoFixableConfigIssue(issue) {
   if (['自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
   return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek应使用V4兼容格式化输出|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
@@ -1357,7 +1362,7 @@ function checkConfig() {
       if (isExtra) {
         const em = cfg.额外模型解析配置 || {};
         if (em.启用自动请求 !== true) issues.push('自动请求未开启');
-        if (em.最小请求字数 !== 50) issues.push('最小请求字数应为50');
+        if (supportsMvuMinRequestLength(em) && em.最小请求字数 !== 50) issues.push('最小请求字数应为50');
         if (!em.api地址 || !em.api地址.trim()) issues.push('API地址未填写');
         // MVU新版：按模型类型检测最优配置（模型名不区分大小写）
         // 规则：仅 gemini 系开随机头部；其余（deepseek 及其它）一律关闭
@@ -1730,7 +1735,9 @@ function syncMvuToForm(cfg) {
   mvuRequestMode.value = em.请求方式 || bu.请求方式 || '依次请求，失败后重试';
   mvuRequestCount.value = em.请求次数 ?? bu.请求次数 ?? 1;
   mvuAutoRequest.checked = em.启用自动请求 ?? bu.启用自动请求 ?? true;
-  mvuMinRequestLength.value = em.最小请求字数 ?? bu.最小请求字数 ?? 0;
+  mvuMinRequestLength.disabled = !supportsMvuMinRequestLength(em);
+  mvuMinRequestLength.title = mvuMinRequestLength.disabled ? '当前 MVU 版本不支持最小请求字数' : '';
+  mvuMinRequestLength.value = mvuMinRequestLength.disabled ? 0 : em.最小请求字数 ?? bu.最小请求字数 ?? 0;
   mvuApiUrl.value = em.api地址 || bu.api地址 || '';
   mvuApiKey.value = em.密钥 || bu.密钥 || '';
   const modelName = _curModelName;
@@ -1820,7 +1827,7 @@ function writeMvuConfig() {
   em.请求方式 = mvuRequestMode.value;
   em.请求次数 = parseInt(mvuRequestCount.value) || 1;
   em.启用自动请求 = mvuAutoRequest.checked;
-  em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
+  if (supportsMvuMinRequestLength(em)) em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
   em.api地址 = mvuApiUrl.value;
   em.密钥 = mvuApiKey.value;
   em.模型名称 = mvuModelName.value;
@@ -1864,7 +1871,7 @@ function ewcBackupToEwcYH() {
   bu.请求方式 = em.请求方式;
   bu.请求次数 = em.请求次数;
   bu.启用自动请求 = em.启用自动请求;
-  bu.最小请求字数 = em.最小请求字数;
+  if (supportsMvuMinRequestLength(em)) bu.最小请求字数 = em.最小请求字数;
   bu.api地址 = em.api地址;
   bu.密钥 = em.密钥;
   bu.模型名称 = em.模型名称;
@@ -1900,7 +1907,7 @@ function ewcRestoreFromEwcYH() {
   if (!em.请求方式 && bu.请求方式) em.请求方式 = bu.请求方式;
   if (em.请求次数 === undefined && bu.请求次数 !== undefined) em.请求次数 = bu.请求次数;
   if (em.启用自动请求 === undefined && bu.启用自动请求 !== undefined) em.启用自动请求 = bu.启用自动请求;
-  if (em.最小请求字数 === undefined && bu.最小请求字数 !== undefined) em.最小请求字数 = bu.最小请求字数;
+  if (supportsMvuMinRequestLength(em) && em.最小请求字数 === undefined && bu.最小请求字数 !== undefined) em.最小请求字数 = bu.最小请求字数;
   if (!em.api地址 && bu.api地址) em.api地址 = bu.api地址;
   if (!em.密钥 && bu.密钥) em.密钥 = bu.密钥;
   if (!em.模型名称 && bu.模型名称) em.模型名称 = bu.模型名称;
@@ -2189,8 +2196,9 @@ async function mvuLiveApply(cfg) {
         return keys.every(function(key) { return expected[key] === undefined || actual?.[key] === expected[key]; });
       }
       if (!st || st.更新方式 !== cfg.更新方式
-        || !matches(emCfg, st.额外模型解析配置, ['模型来源', '模型名称', '启用自动请求', '最小请求字数'])
-) return { ok: false };
+        || !matches(emCfg, st.额外模型解析配置, ['模型来源', '模型名称', '启用自动请求'])
+        || (typeof st.额外模型解析配置?.触发标签 === 'string'
+          && !matches(emCfg, st.额外模型解析配置, ['最小请求字数']))) return { ok: false };
       var effective = store.effective_settings || st;
       var overridden = effective.更新方式 !== st.更新方式
         || !matches(emCfg, effective.额外模型解析配置, ['启用自动请求']);
@@ -2694,7 +2702,7 @@ function refreshMvuConfigStatus() {
     if (isExtra) {
       if (!hasApi) warnRows.push({ label: 'API地址未填写', val: false });
       if (em.启用自动请求 !== true) warnRows.push({ label: '自动请求未开启', val: false });
-      if (em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
+      if (supportsMvuMinRequestLength(em) && em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
       if (_hasModel && !_rndOk) warnRows.push({ label: '随机头部' + _rndTag, val: false });
       if (_hasModel && !_fmtOk) warnRows.push({ label: '应答格式 应为 ' + (_isDS ? '格式化输出(v4兼容)' : '聊天消息'), val: false });
       if (_hasModel && !_topOk) warnRows.push({ label: 'top_p 应为 0.95', val: false });
@@ -2738,7 +2746,7 @@ async function applyOptimalMvuConfig() {
     em.请求方式 = '依次请求，失败后重试';
     em.请求次数 = 1;
     em.启用自动请求 = true;
-    em.最小请求字数 = 50;
+    if (supportsMvuMinRequestLength(em)) em.最小请求字数 = 50;
     em.最大回复token数 = 65535;
     em.温度 = 1;
     em.频率惩罚 = 0;
@@ -4183,7 +4191,7 @@ mvuOptimizeBtn.addEventListener('click', () => {
       </div>
       <div class="bp-dlg-mode-card" id="bp-dlg-sui-card" style="${cardStyle}" data-mode="sui">
         随AI输出
-        <div style="${hintGray}">仅限高注意力模型<br>如 Claude / DeepSeek 系列</div>
+        <div style="${hintGray}">推荐开启：Claude 系、DeepSeek 系<br>Gemini 3.8F、Gemini 4 Argon</div>
         <div style="font-size:10px;color:#6a8098;margin-top:4px;line-height:1.4;">记得打开预设中的<br>变量更新提醒</div>
       </div>
     </div>
@@ -4321,7 +4329,7 @@ async function applyMvuConfigFromForm() {
     em.请求方式 = mvuRequestMode.value;
     em.请求次数 = parseInt(mvuRequestCount.value) || 1;
     em.启用自动请求 = mvuAutoRequest.checked;
-    em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
+    if (supportsMvuMinRequestLength(em)) em.最小请求字数 = Math.max(0, Math.floor(Number(mvuMinRequestLength.value) || 0));
     em.api地址 = mvuApiUrl.value;
     em.密钥 = mvuApiKey.value;
     em.模型名称 = mvuModelName.value;
@@ -4465,9 +4473,9 @@ ewcSyncMvuDom().catch(() => {});
   }
 })();
 
+let _statebarWrongItems = 0; // 状态栏模式中误开启的对端条目数
 checkConfig();
 // 每5秒自动检测一次配置（模型切换后呼吸灯自动跟上，无需打开面板）
-let _statebarWrongItems = 0; // 状态栏模式中误开启的对端条目数
 
 setInterval(async () => {
   try {
