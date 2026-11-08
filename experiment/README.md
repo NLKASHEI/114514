@@ -65,10 +65,10 @@
 
 ```js
 // 固定到某个提交（推荐，绕开 CDN 缓存）
-import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@b3d9d57/experiment/experiment/道渊MVU注入特化.js'
+import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@50ea7d5/experiment/道渊MVU注入特化.js'
 
 // 跟着分支走（有缓存，可能拿到旧版）
-import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@experiment/experiment/道渊MVU注入特化.js'
+import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@experiment/道渊MVU注入特化.js'
 ```
 
 依赖：MagVarUpdate 已加载；酒馆助手支持 `CHAT_COMPLETION_SETTINGS_READY`。
