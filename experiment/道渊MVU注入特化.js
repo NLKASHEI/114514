@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// 道渊 MVU 注入特化 · experiment 1.0
+// 道渊 MVU 注入特化 · experiment 2.1
 // ---------------------------------------------------------------
 // 不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步：
 //   1) 把 <status_current_variables> 里的整棵 stat_data 换成"投影"
@@ -18,22 +18,95 @@
 (function () {
   'use strict';
 
-  const VERSION = '2.0.0-experiment';
+  const VERSION = '2.1.0-experiment';
   const TAG = '[道渊EXPR]';
+  const MVU_DIAGNOSTIC_EVENT = 'daoyuan_mvu_extra_model_diagnostic';
+  const extraAttempts = new Map();
+  const helperStateBlocks = new Map();
+  const MAIN_GENERATIONS = new Set(['normal', 'regenerate', 'swipe', 'continue']);
+  let mainRequestPending = false;
+
+  function viewerLog(level, message) {
+    try {
+      const logger = typeof _th_impl === 'undefined' ? window.parent?.TavernHelper?._th_impl : _th_impl;
+      const name = typeof getIframeName === 'function' ? getIframeName() : '道渊EXPR';
+      logger?._log(name, level, TAG + ' ' + message);
+    } catch {
+      // 诊断不可中断正文或 MVU。
+    }
+  }
+
+  function attemptHeader(id) {
+    return '额外模型 [' + id + '] ';
+  }
+
+  function responseText(response) {
+    if (response === undefined || response === null) return '（本次没有收到模型输出）';
+    if (response === '') return '（模型返回空字符串）';
+    return typeof response === 'string' ? response : JSON.stringify(response, null, 2);
+  }
+
+  function isMvuExtra(parts) {
+    return parts.some((part) => part?.role === 'system' && typeof part.content === 'string' &&
+      (part.content.includes('<past_observe>') || part.content.includes('<additional_information>')));
+  }
+
+  function registerAttempt(id, _type, config) {
+    if (!id) return;
+    const parts = [...(config?.injects || []), ...(config?.ordered_prompts || [])];
+    // generateRaw 可以复用正文系统消息。按本次已知的状态块排除这类请求。
+    const blocks = parts.flatMap(part => typeof part?.content === 'string' ?
+      [...part.content.matchAll(new RegExp(STATUS_RE.source, 'g'))].map(match => match[0]) : []);
+    if (blocks.length) {
+      helperStateBlocks.set(id, blocks);
+      if (helperStateBlocks.size > 64) helperStateBlocks.delete(helperStateBlocks.keys().next().value);
+    }
+    if (extraAttempts.has(id)) return;
+    if (!isMvuExtra(parts)) return;
+    extraAttempts.set(id, {
+      source: String(config?.custom_api?.model || '').startsWith('mvu-pi-prompt-capture:') ? 'Pi' : 'helper',
+    });
+    if (extraAttempts.size > 64) extraAttempts.delete(extraAttempts.keys().next().value);
+  }
+
+  function observeMvuAttempt(data) {
+    if (!data?.generationId) return;
+    const id = data.generationId;
+    if (data.status === 'started') {
+      extraAttempts.set(id, { source: 'mvu' });
+      return;
+    }
+    if (extraAttempts.get(id)?.source !== 'mvu') return;
+    extraAttempts.delete(id);
+    helperStateBlocks.delete(id);
+    if (data.status === 'accepted') {
+      viewerLog('info', attemptHeader(id) + '输出通过 MVU 解析检查，等待变量写入');
+      return;
+    }
+    viewerLog('error', attemptHeader(id) + '解析未通过：' + (data.error || '未知错误') +
+      '\n完整输出：\n' + responseText(data.response));
+  }
+
+  function observeHelperResponse(text, id, reasoning) {
+    helperStateBlocks.delete(id);
+    const attempt = extraAttempts.get(id);
+    if (attempt?.source !== 'helper') return;
+    extraAttempts.delete(id);
+    const body = typeof reasoning === 'string' && reasoning ? { content: text, reasoning } : text;
+    viewerLog('info', attemptHeader(id) + '收到完整可见输出，解析和写入由 MVU 决定\n' + responseText(body));
+  }
 
   const CFG = {
     maxText: 28,          // 长文本默认保留字数
     maxTextIdle: 12,      // 在场但没被提到时的描写保留字数
     yujianKeep: 3,        // 玉简保留最近几条（在场的）
-    log: true,            // 是否追加变更日志
+    log: false,           // 是否把净变化一并发给模型
     logMax: 24,           // 单组最多展示多少条差异
     presence: true,       // 是否按在场裁剪道侣/人物/灵宠/玉简
     presenceFloors: 4,    // 往前看几楼判断"在场"
     activeFloors: 2,      // 往前看几楼算"正在被写"（描写保留更长）
     presenceHold: 2,      // 上一轮在场的人，继续保持全文几轮（防"刚做完就失忆"）
     timeFix: false,       // 时间越界时是否回滚（实验性，默认关闭）
-    debug: true,
-    debugPanel: true,     // 左下角调试面板
   };
 
   const STATUS_RE = /<status_current_variables>[\s\S]*?<\/status_current_variables>/;
@@ -169,9 +242,8 @@
     const v = msg && msg.variables;
     if (!v || typeof v !== 'object') return null;
     if (isObj(v.stat_data)) return v.stat_data;
-    for (const k of Object.keys(v)) {
-      if (isObj(v[k]) && isObj(v[k].stat_data)) return v[k].stat_data;
-    }
+    const swipe = v[msg.swipe_id ?? 0];
+    if (isObj(swipe?.stat_data)) return swipe.stat_data;
     return null;
   }
 
@@ -342,15 +414,6 @@
     return out;
   }
 
-  function brief(stat) {
-    if (!stat) return '';
-    const w = stat.世界 || {};
-    const p = stat.主角 || {};
-    return '时间 ' + JSON.stringify(w.当前时间 || '') + ' ｜ 修为 ' + (p.修为 === undefined ? '?' : p.修为) +
-      ' ｜ 生命 ' + (p.生命 === undefined ? '?' : p.生命) + ' ｜ 冷却 ' + (w.遭遇冷却 === undefined ? '?' : w.遭遇冷却) +
-      ' ｜ 地点 ' + String(w.当前地点 || '').slice(0, 16);
-  }
-
   // ───────────────────────── 差异 ─────────────────────────
 
   function diffLines(before, after) {
@@ -431,7 +494,7 @@
     const last = window.__DAOYUAN_EXPR_LASTUPDATE;
     const lines = [];
 
-    if (last && last.diffs && last.diffs.length >= 0 && last.at) {
+    if (last && Array.isArray(last.diffs) && last.at) {
       lines.push.apply(lines, timeLinesOf(last.preTime, last.postTime));
       lines.push.apply(lines, last.diffs);
     } else {
@@ -443,7 +506,6 @@
 
     if (window.__DAOYUAN_EXPR_FIX) {
       lines.push('⚠ 上一楼时间越界，已由脚本回滚至「' + window.__DAOYUAN_EXPR_FIX + '」。');
-      window.__DAOYUAN_EXPR_FIX = null;
     }
 
     if (!lines.length) return '';
@@ -462,146 +524,69 @@
   function buildView() {
     const current = latestState();
     if (!current) return null;
-    const states = recentStates();
-    const prevEntry = states.length > 1 ? states[1] : null;
-    const previous = prevEntry ? prevEntry.stat : null;
-    const diffs = previous ? diffLines(previous, current) : [];
-    const projection = toYaml(project(current));
-    const log = CFG.log && previous ? buildLog(current, previous, diffs) : '';
+    const previous = CFG.log ? recentStates()[1]?.stat : null;
     return {
-      projection,
-      log,
+      projection: toYaml(project(current)),
+      log: previous ? buildLog(current, previous) : '',
       raw: JSON.stringify(current),
-      current,
-      previous,
-      diag: {
-        curId: states.length ? states[0].id : -1,
-        prevId: prevEntry ? prevEntry.id : -1,
-        prevTime: previous && previous.世界 ? previous.世界.当前时间 : null,
-        curTime: current && current.世界 ? current.世界.当前时间 : null,
-        diffCount: diffs.length,
-        prevBrief: brief(previous),
-        curBrief: brief(current),
-      },
     };
   }
 
   function rewriteRequest(payload) {
-    const messages = payload && Array.isArray(payload.messages) ? payload.messages : null;
-    if (!messages || !messages.length) return;
+    const messages = payload?.messages;
+    if (!mainRequestPending || !Array.isArray(messages) || payload.dryRun || payload.dry_run) return;
+    if (String(payload.model || '').startsWith('mvu-pi-prompt-capture:') || isMvuExtra(messages)) return;
 
+    // 只替换原请求已提供的状态，不向缺少状态块的后台请求注入角色数据。
+    const targets = messages.filter((m) => m?.role === 'system' &&
+      typeof m.content === 'string' && m.content.includes('【以下内容仅供参考，严禁出现在正文！】') &&
+      m.content.includes('【以上内容仅供参考，严禁出现在正文！】') && STATUS_RE.test(m.content));
+    if (targets.length !== 1) return;
+    const [target] = targets;
+    const blocks = [...target.content.matchAll(new RegExp(STATUS_RE.source, 'g'))];
+    if (blocks.length !== 1) return;
+    const originalBlock = blocks[0][0];
+    const helper = [...helperStateBlocks].find(([, states]) => states.includes(originalBlock));
+    if (helper) {
+      helperStateBlocks.delete(helper[0]);
+      return;
+    }
+
+    mainRequestPending = false;
     presenceTurn += 1;
     const view = buildView();
     if (!view) return;
-
-    for (const m of messages) {
-      if (m && typeof m.content === 'string' && m.content.indexOf(LOG_OPEN) >= 0) {
-        m.content = stripOldLogs(m.content);
-      }
-    }
-
-    let hit = false;
-    for (const m of messages) {
-      if (!m || typeof m.content !== 'string') continue;
-      if (!STATUS_RE.test(m.content)) continue;
-      m.content = m.content.replace(
-        STATUS_RE,
-        '<status_current_variables>\n' + view.projection + '\n</status_current_variables>' +
-        (view.log ? '\n' + view.log : '')
-      );
-      hit = true;
-      break;
-    }
-
-    if (!hit) {
-      const block = '<status_current_variables>\n' + view.projection + '\n</status_current_variables>' +
-        (view.log ? '\n' + view.log : '');
-      messages.splice(Math.max(0, messages.length - 1), 0, { role: 'system', content: block });
-    }
-
-    if (CFG.debug) {
-      console.info(TAG, '投影 ' + view.projection.length + ' 字（原始 ' + view.raw.length + ' 字，省 ' +
-        (view.raw.length - view.projection.length) + ' 字），日志 ' + view.log.length + ' 字');
-    }
+    const projection = '<status_current_variables>\n' + view.projection + '\n</status_current_variables>';
+    const replacement = projection + (view.log ? '\n' + view.log : '');
     window.__DAOYUAN_EXPR_LAST = view;
-    const joined = messages.map((m) => (typeof m.content === 'string' ? m.content : '')).join('\n');
-    // 主模型请求由 ST 自己拼，不带 <past_observe>；额外模型请求一定带
-    const isExtra = joined.indexOf('<past_observe>') >= 0 || joined.indexOf('<additional_information>') >= 0;
-    const hasYaml = /<status_current_variables>[\s\S]{0,80}世界:/.test(joined);
-    const hasJson = /"stat_data"|"当前时间":/.test(joined);
-    const snapshot = {
-      at: new Date().toLocaleTimeString(),
-      kind: isExtra ? '额外模型' : '主模型',
-      mode: hasYaml ? '投影(YAML)' : hasJson ? '原始(JSON)' : '未找到状态块',
-      total: messages.length,
-      chars: messages.reduce((n, m) => n + (typeof m.content === 'string' ? m.content.length : 0), 0),
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: typeof m.content === 'string' ? (m.content.length > 60000 ? m.content.slice(0, 60000) + '…' : m.content) : JSON.stringify(m.content),
-      })),
-    };
-    if (isExtra) {
-      window.__DAOYUAN_EXPR_ATTEMPTS = (window.__DAOYUAN_EXPR_ATTEMPTS || 0) + 1;
-      if (!window.__DAOYUAN_EXPR_ATTEMPT_START) window.__DAOYUAN_EXPR_ATTEMPT_START = new Date().toLocaleTimeString();
+    if (replacement.length >= originalBlock.length) {
+      viewerLog('info', '正文状态原样发送：投影未减少字数');
+      return;
     }
-    window.__DAOYUAN_EXPR_REQS = (window.__DAOYUAN_EXPR_REQS || []).concat([snapshot]).slice(-4);
-    renderPanel();
+    // 替换函数保留角色数据中 $&、$' 等字面文本。
+    target.content = stripOldLogs(target.content).replace(STATUS_RE, () => replacement);
+    window.__DAOYUAN_EXPR_FIX = null;
+    viewerLog('info', '正文状态投影：' + originalBlock.length + ' → ' + replacement.length +
+      ' 字，减少 ' + (originalBlock.length - replacement.length) + ' 字');
   }
 
   // ───────────────────────── 更新块捕获 ─────────────────────────
 
   function captureUpdate(pre, post) {
-    const chat = chatList();
-    let id = -1;
-    for (let i = chat.length - 1; i >= 0; i--) {
-      if (!chat[i].is_user && !chat[i].is_system) { id = i; break; }
-    }
-    const mes = id >= 0 ? String(chat[id].mes || '') : '';
-    const m = mes.match(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/i);
-    const raw = m ? m[0] : '';
-    const jm = raw.match(/<JSONPatch>([\s\S]*?)<\/JSONPatch>/i);
-    let patch = null;
-    let patchOk = false;
-    let patchErr = '';
-    if (jm) {
-      try {
-        patch = JSON.parse(jm[1].trim());
-        patchOk = Array.isArray(patch);
-        if (!patchOk) patchErr = 'JSONPatch 不是数组';
-      } catch (e) {
-        patchErr = String(e && e.message ? e.message : e);
-      }
-    }
-    const diffs = pre && post ? diffLines(pre, post) : [];
-    const now = new Date().toLocaleTimeString();
+    if (!pre || !post) return;
+    const diffs = diffLines(pre, post);
     window.__DAOYUAN_EXPR_LASTUPDATE = {
-      at: now,
-      preTime: pre && pre.世界 ? pre.世界.当前时间 : null,
-      postTime: post && post.世界 ? post.世界.当前时间 : null,
-      diffs: diffs,
-      ops: Array.isArray(patch) ? patch.length : 0,
-      attempts: window.__DAOYUAN_EXPR_ATTEMPTS || 0,
-      startedAt: window.__DAOYUAN_EXPR_ATTEMPT_START || null,
+      at: new Date().toLocaleTimeString(),
+      preTime: pre.世界?.当前时间,
+      postTime: post.世界?.当前时间,
+      diffs,
     };
-    window.__DAOYUAN_EXPR_ATTEMPTS = 0;
-    window.__DAOYUAN_EXPR_ATTEMPT_START = null;
-    window.__DAOYUAN_EXPR_UPDATE = {
-      at: now,
-      id: id,
-      found: !!m,
-      raw: raw,
-      patch: patch,
-      patchOk: patchOk,
-      patchErr: patchErr,
-      ops: Array.isArray(patch) ? patch.length : 0,
-      changed: diffs.length,
-      diffs: diffs,
-      cmds: window.__DAOYUAN_EXPR_CMDS || [],
-      pre: brief(pre),
-      post: brief(post),
-    };
+    const commands = window.__DAOYUAN_EXPR_CMDS || [];
     window.__DAOYUAN_EXPR_CMDS = null;
-    renderPanel();
+    const text = 'MVU 变量结算：' + commands.length + ' 条命令，' + diffs.length + ' 组变化' +
+      (diffs.length ? '\n' + diffs.join('\n') : '');
+    window.__DAOYUAN_EXPR_UPDATE = text;
+    viewerLog('info', text);
   }
 
   // ───────────────────────── 时间守卫 ─────────────────────────
@@ -632,24 +617,11 @@
       if (!curP.ok || (curP.ok && curP.era === prevP.era && curP.ms < prevP.ms)) {
         st.世界.当前时间 = prevRaw;
         window.__DAOYUAN_EXPR_FIX = prevRaw;
-        console.warn(TAG, '时间越界已回滚：' + JSON.stringify(cur) + ' → ' + prevRaw);
+        viewerLog('warn', '时间越界已回滚：' + JSON.stringify(cur) + ' → ' + prevRaw);
       }
     } catch (e) {
-      console.error(TAG, '时间守卫失败', e);
+      viewerLog('error', '时间守卫失败：' + String(e));
     }
-  }
-
-  // ───────────────────────── 调试面板 ─────────────────────────
-
-  const PANEL_ID = 'dao-yuan-expr-panel';
-
-  function panelDoc() {
-    try {
-      if (window.parent && window.parent !== window && window.parent.document && window.parent.document.body) {
-        return window.parent.document;
-      }
-    } catch (e) { /* 跨域：退回自身文档 */ }
-    return document;
   }
 
   function presentNames() {
@@ -660,428 +632,111 @@
     return names;
   }
 
-  function overviewText() {
-    const view = window.__DAOYUAN_EXPR_LAST;
-    const reqs = window.__DAOYUAN_EXPR_REQS || [];
-    const req = reqs.length ? reqs[reqs.length - 1] : null;
-    const out = window.__DAOYUAN_EXPR_OUT;
-    const curTime = view && view.current && view.current.世界 && view.current.世界.当前时间;
-    const parsed = parseTime(curTime);
-    const lines = [];
-    lines.push(TAG + ' v' + VERSION);
-    lines.push('状态：原始 ' + (view ? view.raw.length : 0) + ' 字 → 投影 ' + (view ? view.projection.length : 0) +
-      ' 字（省 ' + (view ? view.raw.length - view.projection.length : 0) + '），日志 ' + (view ? view.log.length : 0) + ' 字');
-    lines.push('在场：' + (presentNames().join('、') || '(无)'));
-    lines.push('时间：' + JSON.stringify(curTime) + ' → ' + (parsed.ok ? '解析成功（' + parsed.year + '-' + parsed.month + '-' + parsed.day + ' ' + parsed.hour + ':' + parsed.minute + '）' : '解析失败：' + parsed.error));
-    const diag = view && view.diag;
-    if (diag) {
-      lines.push('对比：# ' + diag.prevId + ' → # ' + diag.curId + '，净变化 ' + diag.diffCount + ' 组' + (diag.diffCount ? '' : '（该轮状态无差异）'));
-      lines.push('上一楼：' + (diag.prevBrief || '(无)'));
-      lines.push('当前：  ' + (diag.curBrief || '(无)'));
-    }
-    const lastU = window.__DAOYUAN_EXPR_LASTUPDATE;
-    if (lastU) {
-      lines.push('上次落地：# 更新于 ' + lastU.at + '（第 ' + (lastU.attempts || 1) + ' 次额外请求，起于 ' + (lastU.startedAt || '?') + '），' +
-        lastU.ops + ' 条操作 / ' + (lastU.diffs ? lastU.diffs.length : 0) + ' 组变更');
-    }
-    if (window.__DAOYUAN_EXPR_ATTEMPTS) {
-      lines.push('⚠ 额外模型已请求 ' + window.__DAOYUAN_EXPR_ATTEMPTS + ' 次，尚未落地（起于 ' + (window.__DAOYUAN_EXPR_ATTEMPT_START || '?') + '）');
-    }
-    const reqs2 = window.__DAOYUAN_EXPR_REQS || [];
-    if (reqs2.length) {
-      lines.push('最近请求：');
-      reqs2.forEach((r) => { lines.push('  · ' + r.at + ' ' + r.kind + ' / ' + r.mode + ' / ' + r.total + ' 条 / ' + r.chars + ' 字'); });
-    }
-    lines.push('请求：' + (req ? req.total + ' 条消息 / ' + req.chars + ' 字（' + req.at + '）' : '(无)'));
-    lines.push('输出：' + (out ? out.at + '，第 ' + out.id + ' 楼，' + out.text.length + ' 字' : '(无)'));
-    return lines.join('\n');
-  }
-
-  function buildInjection() {
-    const view = window.__DAOYUAN_EXPR_LAST;
-    if (!view) return '';
-    return '<status_current_variables>\n' + view.projection + '\n</status_current_variables>' +
-      (view.log ? '\n' + view.log : '');
-  }
-
-  function buildRequest() {
-    const list = window.__DAOYUAN_EXPR_REQS || [];
-    if (!list.length) return '';
-    return list.map((req) => {
-      const head = '#### ' + req.kind + '请求 · ' + req.at + ' · ' + req.total + ' 条 / ' + req.chars + ' 字';
-      return head + '\n\n' + req.messages.map((m) => '[' + m.role + '] ' + m.content).join('\n\n————————————\n\n');
-    }).join('\n\n════════════════════\n\n');
-  }
-
-  function buildOutput() {
-    const out = window.__DAOYUAN_EXPR_OUT;
-    return out ? out.text : '';
-  }
-
-  function buildUpdate() {
-    const u = window.__DAOYUAN_EXPR_UPDATE;
-    if (!u) return '(还没抓到更新块)';
-    const lines = [];
-    lines.push('时间：' + u.at + '　楼层：#' + u.id);
-    lines.push('找到更新块：' + (u.found ? '是' : '否') + '　JSONPatch：' + (u.patchOk ? '解析成功' : '解析失败 ' + u.patchErr));
-    lines.push('操作数：' + u.ops + '　实际生效变更：' + u.changed + ' 组');
-    if (u.pre || u.post) {
-      lines.push('应用前：' + (u.pre || '(无)'));
-      lines.push('应用后：' + (u.post || '(无)'));
-    }
-    if (u.diffs && u.diffs.length) {
-      lines.push('');
-      lines.push('—— 实际变更 ——');
-      lines.push.apply(lines, u.diffs);
-    }
-    if (u.cmds && u.cmds.length) {
-      lines.push('');
-      lines.push('—— MVU 解析出的命令 ——');
-      u.cmds.forEach((c) => lines.push(c.type + '  ' + c.path));
-    }
-    lines.push('');
-    lines.push('—— 原始输出 ——');
-    lines.push(u.raw || '(无)');
-    return lines.join('\n');
-  }
-
-  function buildDump() {
-    return [
-      '### 概览\n' + overviewText(),
-      '### 注入给模型的变量块\n' + (buildInjection() || '(空)'),
-      '### 请求体\n' + (buildRequest() || '(空)'),
-      '### 主模型输出（正文）\n' + (buildOutput() || '(空)'),
-      '### 额外模型输出（变量更新块）\n' + buildUpdate(),
-    ].join('\n\n');
-  }
-
-  function copyText(text) {
-    if (!text) return;
-    const done = (msg) => {
-      if (window.__DAOYUAN_EXPR_STATUS) window.__DAOYUAN_EXPR_STATUS.textContent = msg;
-      console.info(TAG, msg);
-    };
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text);
-        done('已复制 ' + text.length + ' 字');
-        return;
-      }
-    } catch (e) { /* 走兜底 */ }
-    try {
-      const doc = panelDoc();
-      const ta = doc.createElement('textarea');
-      ta.value = text;
-      ta.style.cssText = 'position:fixed;left:-9999px;top:0;';
-      doc.body.appendChild(ta);
-      ta.select();
-      doc.execCommand('copy');
-      doc.body.removeChild(ta);
-      done('已复制 ' + text.length + ' 字');
-    } catch (e) {
-      console.error(TAG, '复制失败', e);
-    }
-  }
-
-  function downloadText(name, text) {
-    const doc = panelDoc();
-    try {
-      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = doc.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.style.cssText = 'display:none;';
-      doc.body.appendChild(a);
-      a.click();
-      doc.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-      if (window.__DAOYUAN_EXPR_STATUS) window.__DAOYUAN_EXPR_STATUS.textContent = '已导出 ' + name;
-      return true;
-    } catch (e) {
-      console.warn(TAG, '下载失败，改用文本框', e);
-      showTextModal(name, text);
-      return false;
-    }
-  }
-
-  function showTextModal(name, text) {
-    const doc = panelDoc();
-    const old = doc.getElementById('dao-yuan-expr-modal');
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    const mask = doc.createElement('div');
-    mask.id = 'dao-yuan-expr-modal';
-    mask.style.cssText = 'position:fixed;inset:0;z-index:2147483001;background:rgba(0,0,0,.66);display:flex;align-items:center;justify-content:center;';
-
-    const box = doc.createElement('div');
-    box.style.cssText = 'width:min(900px,92vw);height:78vh;background:#141a21;border:1px solid #3a4757;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;';
-
-    const bar = doc.createElement('div');
-    bar.style.cssText = 'display:flex;gap:8px;align-items:center;color:#9fd0ff;font:12px Consolas,monospace;';
-
-    const title = doc.createElement('span');
-    title.textContent = name + ' · ' + text.length + ' 字（Ctrl+A 全选，Ctrl+C 复制）';
-    title.style.cssText = 'flex:1;';
-
-    const close = doc.createElement('button');
-    close.textContent = '关闭';
-    close.style.cssText = 'all:unset;cursor:pointer;padding:3px 10px;border-radius:4px;background:#22303f;color:#9fd0ff;border:1px solid #33455a;';
-    close.addEventListener('click', () => mask.parentNode && mask.parentNode.removeChild(mask));
-
-    const ta = doc.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'flex:1;width:100%;background:#0d1218;color:#c9d6e4;border:1px solid #263341;border-radius:6px;padding:8px;font:12px/1.5 Consolas,monospace;white-space:pre;';
-    ta.addEventListener('click', () => ta.select());
-
-    bar.appendChild(title);
-    bar.appendChild(close);
-    box.appendChild(bar);
-    box.appendChild(ta);
-    mask.appendChild(box);
-    doc.body.appendChild(mask);
-    ta.focus();
-    ta.select();
-  }
-
-  function exportAll() {
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    return downloadText('道渊EXPR-' + stamp + '.txt', buildDump());
-  }
-
-  function section(title, text, open) {
-    const doc = panelDoc();
-    const det = doc.createElement('details');
-    det.open = !!open;
-    const sum = doc.createElement('summary');
-    sum.textContent = title + '（' + (text ? text.length : 0) + ' 字）';
-    sum.style.cssText = 'cursor:pointer;color:#7fb7e6;padding:2px 0;';
-    const pre = doc.createElement('pre');
-    pre.textContent = text || '(空)';
-    pre.style.cssText = 'white-space:pre-wrap;word-break:break-all;max-height:46vh;overflow:auto;background:#0d1218;border:1px solid #263341;border-radius:6px;padding:6px;margin:4px 0 0;color:#c9d6e4;';
-    det.appendChild(sum);
-    det.appendChild(pre);
-    return det;
-  }
-
-  function renderPanel() {
-    const host = window.__DAOYUAN_EXPR_PANEL;
-    if (!host) return;
-    const c = host.content;
-    while (c.firstChild) c.removeChild(c.firstChild);
-    c.appendChild(section('概览', overviewText(), true));
-    c.appendChild(section('注入给模型的变量块', buildInjection(), false));
-    c.appendChild(section('请求体（实际发出的消息）', buildRequest(), false));
-    c.appendChild(section('主模型输出（正文）', buildOutput(), false));
-    c.appendChild(section('额外模型输出（变量更新块）', buildUpdate(), false));
-  }
-
-  function initPanel() {
-    if (!CFG.debugPanel) return;
-    const doc = panelDoc();
-    if (!doc || !doc.body) return;
-    const old = doc.getElementById(PANEL_ID);
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-
-    const wrap = doc.createElement('div');
-    wrap.id = PANEL_ID;
-    wrap.style.cssText = 'position:fixed;left:10px;bottom:10px;z-index:2147483000;font:12px/1.55 Consolas,Menlo,monospace;color:#d8e0ea;text-align:left;';
-
-    const body = doc.createElement('div');
-    body.style.cssText = 'display:none;width:min(780px,88vw);max-height:78vh;overflow:auto;background:#141a21;border:1px solid #3a4757;border-radius:8px;margin-bottom:6px;padding:8px 10px;box-shadow:0 6px 24px rgba(0,0,0,.5);';
-
-    const tools = doc.createElement('div');
-    tools.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;align-items:center;';
-
-    const mkBtn = (label, fn) => {
-      const b = doc.createElement('button');
-      b.textContent = label;
-      b.style.cssText = 'all:unset;cursor:pointer;padding:3px 8px;border-radius:4px;background:#22303f;color:#9fd0ff;border:1px solid #33455a;';
-      b.addEventListener('click', fn);
-      return b;
-    };
-
-    const status = doc.createElement('span');
-    status.style.cssText = 'color:#6f8fa8;margin-left:4px;';
-    window.__DAOYUAN_EXPR_STATUS = status;
-
-    const content = doc.createElement('div');
-    content.style.cssText = 'display:flex;flex-direction:column;gap:6px;';
-
-    tools.appendChild(mkBtn('导出全部', () => exportAll()));
-    tools.appendChild(mkBtn('导出请求', () => downloadText('道渊EXPR-请求.txt', buildRequest())));
-    tools.appendChild(mkBtn('导出输出', () => downloadText('道渊EXPR-输出.txt', buildOutput())));
-    tools.appendChild(mkBtn('导出更新块', () => downloadText('道渊EXPR-更新块.txt', buildUpdate())));
-    tools.appendChild(mkBtn('复制全部', () => copyText(buildDump())));
-    tools.appendChild(mkBtn('文本框', () => showTextModal('道渊EXPR', buildDump())));
-    tools.appendChild(mkBtn('刷新', () => renderPanel()));
-    tools.appendChild(status);
-
-    body.appendChild(tools);
-    body.appendChild(content);
-
-    const btn = doc.createElement('button');
-    btn.textContent = '道渊EXPR';
-    btn.style.cssText = 'all:unset;cursor:pointer;padding:5px 10px;border-radius:6px;background:#1f2731;border:1px solid #3a4757;color:#9fd0ff;opacity:.85;';
-
-    wrap.appendChild(body);
-    wrap.appendChild(btn);
-    doc.body.appendChild(wrap);
-
-    btn.addEventListener('click', () => {
-      const open = body.style.display !== 'none';
-      body.style.display = open ? 'none' : 'block';
-      if (!open) renderPanel();
-    });
-
-    window.__DAOYUAN_EXPR_PANEL = { body, content };
-    renderPanel();
-  }
-
   // ───────────────────────── 挂载 ─────────────────────────
-
   (async function boot() {
-    if (window.__DAOYUAN_EXPR_LOADED__) {
-      console.warn(TAG, '已加载，跳过重复挂载');
+    if (window.__DAOYUAN_EXPR_LOADED__) return;
+    if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined') {
+      viewerLog('error', '缺少酒馆助手事件接口');
       return;
     }
     window.__DAOYUAN_EXPR_LOADED__ = true;
 
-    try {
-      if (typeof waitGlobalInitialized === 'function') await waitGlobalInitialized('Mvu');
-    } catch (e) {
-      console.warn(TAG, '等待 Mvu 失败，仍继续挂载', e);
-    }
-
-    if (typeof eventOn !== 'function' || typeof tavern_events === 'undefined') {
-      console.error(TAG, '缺少酒馆助手事件接口，脚本无法工作');
-      return;
-    }
-
-    eventOn(tavern_events.CHAT_COMPLETION_SETTINGS_READY, (payload) => {
-      try { rewriteRequest(payload); } catch (e) { console.error(TAG, '改写请求失败', e); }
+    eventOn(tavern_events.GENERATION_AFTER_COMMANDS || 'GENERATION_AFTER_COMMANDS', (type, _options, dryRun) => {
+      if (!dryRun && MAIN_GENERATIONS.has(type)) mainRequestPending = true;
     });
-
+    if (tavern_events.GENERATION_ENDED) {
+      eventOn(tavern_events.GENERATION_ENDED, () => { mainRequestPending = false; });
+    }
+    eventOn(tavern_events.CHAT_COMPLETION_SETTINGS_READY, (payload) => {
+      try { rewriteRequest(payload); }
+      catch (e) { viewerLog('error', '状态投影失败：' + String(e)); }
+    });
+    eventOn(MVU_DIAGNOSTIC_EVENT, observeMvuAttempt);
+    eventOn('js_generation_requested', registerAttempt);
+    eventOn('js_generation_ended', observeHelperResponse);
+    if (tavern_events.GENERATION_STOPPED) {
+      eventOn(tavern_events.GENERATION_STOPPED, (id) => {
+        if (typeof id !== 'string') mainRequestPending = false;
+        helperStateBlocks.delete(id);
+        const attempt = extraAttempts.get(id);
+        if (!attempt || attempt.source === 'mvu') return;
+        extraAttempts.delete(id);
+        if (attempt.source === 'Pi') {
+          viewerLog('warn', attemptHeader(id) + 'Pi 的原始回复需要带诊断事件的 MVU 构建');
+        } else {
+          viewerLog('info', attemptHeader(id) + '生成已停止，没有完整回复');
+        }
+      });
+    }
     eventOn(tavern_events.CHAT_CHANGED, () => {
+      extraAttempts.clear();
+      helperStateBlocks.clear();
+      mainRequestPending = false;
       window.__DAOYUAN_EXPR_LAST = null;
-      window.__DAOYUAN_EXPR_REQS = [];
       window.__DAOYUAN_EXPR_LASTUPDATE = null;
       window.__DAOYUAN_EXPR_UPDATE = null;
-      window.__DAOYUAN_EXPR_ATTEMPTS = 0;
-      window.__DAOYUAN_EXPR_ATTEMPT_START = null;
+      window.__DAOYUAN_EXPR_CMDS = null;
       window.__DAOYUAN_EXPR_FIX = null;
       resetPresence();
     });
-
-    // 抓最近一条 AI 回复（含 <UpdateVariable> 原文），给面板用
-    try {
-      if (tavern_events.MESSAGE_RECEIVED) {
-        eventOn(tavern_events.MESSAGE_RECEIVED, (id) => {
-          try {
-            const chat = chatList();
-            const msg = chat[id];
-            if (!msg || msg.is_user) return;
-            const text = String(msg.mes || '');
-            const upd = (text.match(/<UpdateVariable>[\s\S]*?<\/UpdateVariable>/i) || [''])[0];
-            window.__DAOYUAN_EXPR_OUT = {
-              at: new Date().toLocaleTimeString(),
-              id: id,
-              text: text,
-              patch: upd,
-            };
-            renderPanel();
-          } catch (e) { /* 忽略 */ }
-        });
-      }
-    } catch (e) {
-      console.warn(TAG, '输出捕获失败', e);
-    }
-
-    try {
-      const events = (typeof Mvu !== 'undefined' && Mvu.events) || {};
-      if (events.VARIABLE_UPDATE_ENDED) {
-        eventOn(events.VARIABLE_UPDATE_ENDED, (next, prev) => {
-          try {
-            captureUpdate(prev && prev.stat_data, next && next.stat_data);
-          } catch (e) {
-            console.warn(TAG, '捕获更新块失败', e);
-          }
-        });
-      }
-      if (events.COMMAND_PARSED) {
-        eventOn(events.COMMAND_PARSED, (variables, commands) => {
-          try {
-            window.__DAOYUAN_EXPR_CMDS = (commands || []).map((c) => ({
-              type: c && c.type,
-              path: (c && c.args && c.args[0]) || '',
-            }));
-          } catch (e) { /* 忽略 */ }
-        });
-      }
-      const before = events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update';
-      // 始终挂载，由 CFG.timeFix 决定是否真正生效（方便运行时开关）
-      eventOn(before, (variables, messageId) => guardTime(variables, messageId));
-    } catch (e) {
-      console.warn(TAG, '时间守卫挂载失败（不影响投影）', e);
-    }
 
     window.DaoYuanEXPR = {
       version: VERSION,
       cfg: CFG,
       set(patch) {
         Object.assign(CFG, patch || {});
-        console.info(TAG, '配置已更新', CFG);
         return CFG;
       },
-      who() {
-        return presentNames();
-      },
-      panel(open) {
-        const host = window.__DAOYUAN_EXPR_PANEL;
-        if (!host) return null;
-        host.body.style.display = open === false ? 'none' : 'block';
-        renderPanel();
-        return buildDump();
-      },
-      dump() {
-        return buildDump();
-      },
-      exportAll() {
-        return exportAll();
-      },
+      who: presentNames,
       update() {
-        return buildUpdate();
-      },
-      exportRequest() {
-        const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-        return downloadText('道渊EXPR-请求-' + stamp + '.txt', buildRequest());
+        return window.__DAOYUAN_EXPR_UPDATE || '';
       },
       preview() {
-        const view = buildView();
-        if (!view) return null;
-        console.log(TAG, '投影：\n' + view.projection);
-        console.log(TAG, '日志：\n' + (view.log || '(无)'));
+        const view = window.__DAOYUAN_EXPR_LAST;
+        if (view) viewerLog('info', '最近一次投影\n' + view.projection + (view.log ? '\n' + view.log : ''));
         return view;
       },
       stats() {
-        const view = buildView();
+        const view = window.__DAOYUAN_EXPR_LAST;
         if (!view) return null;
         return {
           raw: view.raw.length,
           projection: view.projection.length,
-          log: (view.log || '').length,
-          saved: view.raw.length - view.projection.length,
+          log: view.log.length,
+          saved: view.raw.length - view.projection.length - view.log.length,
         };
       },
     };
 
     try {
-      initPanel();
+      if (typeof waitGlobalInitialized === 'function') await waitGlobalInitialized('Mvu');
+      const events = typeof Mvu === 'undefined' ? {} : Mvu.events || {};
+      if (events.VARIABLE_UPDATE_ENDED) {
+        eventOn(events.VARIABLE_UPDATE_ENDED, (next, prev) => {
+          try { captureUpdate(prev?.stat_data, next?.stat_data); }
+          catch (e) { viewerLog('error', '变量结算日志失败：' + String(e)); }
+        });
+      }
+      if (events.COMMAND_PARSED) {
+        eventOn(events.COMMAND_PARSED, (_variables, commands) => {
+          window.__DAOYUAN_EXPR_CMDS = Array.isArray(commands) ? commands : [];
+        });
+      }
+      eventOn(events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update', (context, legacyId) => {
+        if (Number.isInteger(legacyId)) {
+          guardTime(context, legacyId);
+          return;
+        }
+        const chat = chatList();
+        const messageId = chat.length - 1;
+        const latest = chat[messageId];
+        if (typeof context?.message_content === 'string' && latest?.mes === context.message_content &&
+            !latest.is_user && !latest.is_system) {
+          guardTime(context.variables, messageId);
+        }
+      });
     } catch (e) {
-      console.warn(TAG, '面板初始化失败', e);
-      setTimeout(() => { try { initPanel(); } catch (e2) { /* 放弃 */ } }, 1500);
+      viewerLog('error', 'MVU 事件监听失败：' + String(e));
     }
-
-    console.info(TAG, '已挂载 v' + VERSION, CFG);
   })();
 })();

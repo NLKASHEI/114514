@@ -1,5 +1,6 @@
 // 本地自测：不依赖酒馆环境，用 vm 模拟事件与变量
 // 用法：node experiment/test-local.js [聊天存档.jsonl]
+const assert = require('node:assert/strict');
 const fs = require('fs');
 const vm = require('vm');
 const path = require('path');
@@ -47,11 +48,23 @@ const cur = withStat[withStat.length - 1].variables['0'].stat_data;
 const prev = withStat[Math.max(0, withStat.length - 2)].variables['0'].stat_data;
 
 const handlers = {};
+const logs = [];
+const consoleWrites = [];
+const stateBlock = '【以下内容仅供参考，严禁出现在正文！】\n<status_current_variables>\n' +
+  JSON.stringify(cur) + '\n</status_current_variables>\n【以上内容仅供参考，严禁出现在正文！】';
 const ctx = {
-  console, JSON, Math, Date, Object, Array, String, Number, Set, Map, RegExp, isFinite,
+  console: Object.fromEntries(['log', 'info', 'warn', 'error'].map(level => [level, (...args) => consoleWrites.push(args)])),
+  _th_impl: { _log: (name, level, text) => logs.push({ name, level, text }) },
+  JSON, Math, Date, Object, Array, String, Number, Set, Map, RegExp, isFinite,
   waitGlobalInitialized: async () => {},
   eventOn: (n, f) => { (handlers[n] = handlers[n] || []).push(f); },
-  tavern_events: { CHAT_COMPLETION_SETTINGS_READY: 'ready', CHAT_CHANGED: 'changed' },
+  tavern_events: {
+    CHAT_COMPLETION_SETTINGS_READY: 'ready',
+    GENERATION_AFTER_COMMANDS: 'main',
+    GENERATION_ENDED: 'main-ended',
+    GENERATION_STOPPED: 'stopped',
+    CHAT_CHANGED: 'changed',
+  },
   SillyTavern: { chat },
   Mvu: { getMvuData: () => ({ stat_data: cur }), events: { BEFORE_MESSAGE_UPDATE: 'before', VARIABLE_UPDATE_ENDED: 'ended', COMMAND_PARSED: 'parsed' } },
   getVariables: () => ({ stat_data: cur }),
@@ -66,13 +79,21 @@ vm.runInContext(code, ctx);
 setTimeout(() => {
   const messages = [
     { role: 'user', content: 'x' },
-    { role: 'system', content: '<status_current_variables>\nRAW\n</status_current_variables>' },
+    { role: 'system', content: stateBlock },
     { role: 'user', content: 'continue' },
   ];
-  handlers.ready.forEach((f) => f({ messages }));
+  const fire = (event, ...args) => (handlers[event] || []).forEach(fn => fn(...args));
+  const currentBeforeProjection = JSON.stringify(cur);
+  fire('main', 'normal', {}, false);
+  fire('ready', { messages });
+  assert.equal(JSON.stringify(cur), currentBeforeProjection);
 
   console.log('--- stats ---');
   console.log(ctx.window.DaoYuanEXPR.stats());
+  assert.notEqual(messages[1].content, stateBlock);
+  assert.doesNotMatch(messages[1].content, /<mvu变量上一轮次修改日志>/);
+  assert.ok(logs.some(log => log.text.includes('正文状态投影')));
+  assert.equal(consoleWrites.length, 0);
   console.log('--- 注入内容 ---');
   const content = messages[1].content;
   console.log(content.length > 2600 ? content.slice(0, 2600) + '\n…（截断显示）' : content);
@@ -81,10 +102,11 @@ setTimeout(() => {
   function projectText() {
     const m = [
       { role: 'user', content: 'x' },
-      { role: 'system', content: '<status_current_variables>\nRAW\n</status_current_variables>' },
+      { role: 'system', content: stateBlock },
       { role: 'user', content: 'continue' },
     ];
-    handlers.ready.forEach((f) => f({ messages: m }));
+    fire('main', 'normal', {}, false);
+    fire('ready', { messages: m });
     return m[1].content;
   }
   function isFull(text, name) {
@@ -112,6 +134,7 @@ setTimeout(() => {
   console.log('第3轮 未提 → 全文:', isFull(t3, '白薇'), '（延续第2轮）');
   console.log('第4轮 未提 → 全文:', isFull(t4, '白薇'), '（应压成摘要）');
   console.log('当前在场名单:', ctx.window.DaoYuanEXPR.who());
+  if (!file) assert.deepEqual([t1, t2, t3, t4].map(text => isFull(text, '白薇')), [true, true, true, false]);
 
   // 时间守卫自测
   ctx.window.DaoYuanEXPR.set({ timeFix: true });
@@ -154,8 +177,74 @@ setTimeout(() => {
   console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
 
   // 落地更新之后，下一次请求的日志应该基于这次更新
+  ctx.window.DaoYuanEXPR.set({ log: true });
   const after = projectText();
   const logBlock = (after.match(/<mvu变量上一轮次修改日志>[\s\S]*?<\/mvu变量上一轮次修改日志>/) || [''])[0];
   console.log('--- 落地更新后的日志 ---');
   console.log(logBlock || '(无)');
+  if (!file) assert.match(logBlock, /生命-20/);
+  assert.match(ctx.window.DaoYuanEXPR.update(), /2 条命令/);
+
+  const messagesWithoutState = [{ role: 'system', content: '记忆插件请求' }];
+  fire('main', 'normal', {}, false);
+  fire('ready', { messages: messagesWithoutState });
+  assert.equal(messagesWithoutState.length, 1);
+
+  const extraMarker = { role: 'system', content: '<past_observe>' };
+  const extraMessages = [{ role: 'system', content: stateBlock }, extraMarker];
+  fire('ready', { messages: extraMessages });
+  assert.equal(extraMessages[0].content, stateBlock);
+  const piMessages = [{ role: 'system', content: stateBlock }];
+  fire('ready', { messages: piMessages, model: 'mvu-pi-prompt-capture:pi-1' });
+  assert.equal(piMessages[0].content, stateBlock);
+  fire('ready', { messages: piMessages, dryRun: true });
+  assert.equal(piMessages[0].content, stateBlock);
+
+  const pluginPrompt = [{ role: 'system', content: stateBlock }];
+  fire('js_generation_requested', 'memory-overlap', 'generateRaw', { ordered_prompts: pluginPrompt });
+  fire('ready', { messages: pluginPrompt });
+  assert.equal(pluginPrompt[0].content, stateBlock, 'a copied status block stays unchanged during a native generation');
+  const nativePrompt = [{ role: 'system', content: stateBlock }];
+  fire('ready', { messages: nativePrompt });
+  assert.notEqual(nativePrompt[0].content, stateBlock, 'the pending native generation still projects');
+  const memoryOnly = [{ role: 'system', content: stateBlock }];
+  fire('ready', { messages: memoryOnly });
+  assert.equal(memoryOnly[0].content, stateBlock, 'no projection without a native generation');
+
+  const ambiguousPrompt = [{ role: 'system', content: stateBlock + '\n' + stateBlock }];
+  fire('main', 'swipe', {}, false);
+  fire('ready', { messages: ambiguousPrompt });
+  assert.equal(ambiguousPrompt[0].content, stateBlock + '\n' + stateBlock);
+  fire('main-ended');
+  fire('main', 'quiet', {}, false);
+  fire('ready', { messages: memoryOnly });
+  assert.equal(memoryOnly[0].content, stateBlock, 'quiet requests are not native narrative');
+
+  fire('js_generation_requested', 'other', 'generate', { injects: [] });
+  fire('js_generation_ended', '不属于额外模型', 'other');
+  const malformed = '没有闭合的<UpdateVariable>\n' + '甲'.repeat(61000) + '\n末尾完整';
+  fire('js_generation_requested', 'legacy', 'generateRaw', { ordered_prompts: [extraMarker] });
+  fire('js_generation_ended', malformed, 'legacy');
+  assert.ok(logs.some(log => log.text.endsWith(malformed)));
+  assert.ok(!logs.some(log => log.text.includes('不属于额外模型')));
+
+  const diagnostic = 'daoyuan_mvu_extra_model_diagnostic';
+  const toolResult = { content: malformed, tool_calls: [{ function: { arguments: '{broken' } }] };
+  fire(diagnostic, { generationId: 'pi-1', status: 'started' });
+  fire('js_generation_requested', 'pi-1', 'generateRaw', { ordered_prompts: [extraMarker] });
+  fire('js_generation_ended', '占位请求内容', 'pi-1');
+  fire(diagnostic, { generationId: 'pi-1', status: 'rejected', error: '格式不符', response: toolResult });
+  assert.ok(logs.some(log => log.level === 'error' && log.text.endsWith(JSON.stringify(toolResult, null, 2))));
+  assert.ok(!logs.some(log => log.text.includes('占位请求内容')));
+
+  fire(diagnostic, { generationId: 'empty', status: 'started' });
+  fire(diagnostic, { generationId: 'empty', status: 'rejected', response: '' });
+  assert.ok(logs.some(log => log.text.endsWith('（模型返回空字符串）')));
+
+  fire(diagnostic, { generationId: 'cancelled', status: 'started' });
+  fire('changed');
+  fire(diagnostic, { generationId: 'cancelled', status: 'rejected', response: '上一个聊天的回复' });
+  assert.ok(!logs.some(log => log.text.includes('上一个聊天的回复')));
+  assert.equal(consoleWrites.length, 0);
+  console.log('PASS：投影范围、静默日志、完整失败原文、并发请求编号和切换聊天隔离');
 }, 30);
