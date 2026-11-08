@@ -1,6 +1,6 @@
 # experiment · 道渊 MVU 注入特化
 
-> 分支：`experiment` · 版本：1.0.0
+> 分支：`experiment` · 版本：1.1.0
 > 实验性：不改世界书、不改 MVU、不改 ZOD。禁用脚本 = 完全回滚。
 
 ## 它做什么
@@ -9,6 +9,7 @@
 
 1. **投影**：把 `<status_current_variables>` 里的整棵 `stat_data` 换成裁剪版（YAML）。
 2. **在场裁剪**：道侣 / 人物 / 灵宠 / 玉简，只给「最近消息或当前地点里出现过」的人全文，其余压成摘要并标 `在场: false`。
+   已经出过场的人会**延续 `presenceHold` 轮**保持全文，避免"刚做完就失忆"。
 3. **变更日志**：追加 `<mvu变量上一轮次修改日志>`——时间推进/回退校验 + 上一轮净变化清单。
 4. **时间守卫**（可选，默认关）：越界或无法解析的时间，在写入前回滚到上一楼合法值。
 
@@ -85,6 +86,7 @@ DaoYuanEXPR.set({ timeFix: true })         // 打开时间回滚（实验性）
 | `logMax` | 24 | 单组最多展示多少条差异 |
 | `presence` | true | 是否按在场裁剪 |
 | `presenceFloors` | 4 | 往前看几楼判断在场 |
+| `presenceHold` | 2 | 出场后继续保持全文几轮 |
 | `timeFix` | false | 时间越界时是否回滚 |
 
 字段规则：`DROP_FIELDS` = 仙姿 / 群芳谱 / 引言（不进提示词，状态栏照旧显示）；
@@ -95,6 +97,7 @@ DaoYuanEXPR.set({ timeFix: true })         // 打开时间回滚（实验性）
 ```js
 DaoYuanEXPR.stats()     // { raw, projection, log, saved }
 DaoYuanEXPR.preview()   // 打印本轮投影与日志
+DaoYuanEXPR.who()       // 当前被判定为"在场"的名字
 ```
 
 控制台每回合会打：`[道渊EXPR] 投影 3995 字（原始 6831 字，省 2836 字），日志 332 字`
@@ -119,5 +122,5 @@ node experiment/test-local.js "D:/path/to/chat.jsonl"
 
 ## 路线
 
-- v1.1：在场判断加"上一轮在场的延续"（避免一出场就掉摘要）。
+- ~~v1.1：在场判断加"上一轮在场的延续"~~（已完成）
 - v1.2：与主脚本 `道渊配置小助手` 面板打通，可视化开关 + 体积统计。

@@ -74,9 +74,44 @@ setTimeout(() => {
   const content = messages[1].content;
   console.log(content.length > 2600 ? content.slice(0, 2600) + '\n…（截断显示）' : content);
 
+  // ── 在场延续自测 ──
+  function projectText() {
+    const m = [
+      { role: 'user', content: 'x' },
+      { role: 'system', content: '<status_current_variables>\nRAW\n</status_current_variables>' },
+      { role: 'user', content: 'continue' },
+    ];
+    handlers.ready.forEach((f) => f({ messages: m }));
+    return m[1].content;
+  }
+  function isFull(text, name) {
+    const lines = text.split('\n');
+    const i = lines.findIndex((l) => l === '  ' + name + ':');
+    if (i < 0) return null;
+    const block = [];
+    for (let j = i + 1; j < lines.length; j++) {
+      if (/^ {0,2}[^\s]/.test(lines[j])) break;
+      block.push(lines[j]);
+    }
+    return !block.join('\n').includes('在场: false');
+  }
+
+  const chat2 = ctx.SillyTavern.chat;
+  chat2[chat2.length - 1].mes = '白薇推门进来，压低声音说了一句话。';
+  const t1 = projectText();
+  chat2[chat2.length - 1].mes = '你们继续赶路。';
+  const t2 = projectText();
+  const t3 = projectText();
+  const t4 = projectText();
+  console.log('--- 在场延续（白薇只在第1轮被提到） ---');
+  console.log('第1轮 提到 → 全文:', isFull(t1, '白薇'));
+  console.log('第2轮 未提 → 全文:', isFull(t2, '白薇'), '（延续中）');
+  console.log('第3轮 未提 → 全文:', isFull(t3, '白薇'), '（延续第2轮）');
+  console.log('第4轮 未提 → 全文:', isFull(t4, '白薇'), '（应压成摘要）');
+  console.log('当前在场名单:', ctx.window.DaoYuanEXPR.who());
+
   // 时间守卫自测
   ctx.window.DaoYuanEXPR.set({ timeFix: true });
-  const vars = { stat_data: JSON.parse(JSON.stringify(cur)), 世界: {} };
   handlers.before && handlers.before.forEach((f) => f({ stat_data: { 世界: { 当前时间: '元会历·3728年·5月15日·14点00分' } } }, 3));
   console.log('--- 时间守卫（开启 timeFix） ---');
   console.log('回滚标记：', ctx.window.__DAOYUAN_EXPR_FIX || '(未触发)');

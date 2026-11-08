@@ -18,7 +18,7 @@
 (function () {
   'use strict';
 
-  const VERSION = '1.0.0-experiment';
+  const VERSION = '1.1.0-experiment';
   const TAG = '[道渊EXPR]';
 
   const CFG = {
@@ -28,6 +28,7 @@
     logMax: 24,           // 单组最多展示多少条差异
     presence: true,       // 是否按在场裁剪道侣/人物/灵宠/玉简
     presenceFloors: 4,    // 往前看几楼判断"在场"
+    presenceHold: 2,      // 上一轮在场的人，继续保持全文几轮（防"刚做完就失忆"）
     timeFix: false,       // 时间越界时是否回滚（实验性，默认关闭）
     debug: true,
   };
@@ -250,6 +251,15 @@
     return out;
   }
 
+  // 在场延续：记住每个名字最后出现在第几轮，允许"冷却" presenceHold 轮
+  let presenceTurn = 0;
+  const presenceSeen = new Map();
+
+  function resetPresence() {
+    presenceSeen.clear();
+    presenceTurn = 0;
+  }
+
   function buildContext(stat) {
     const place = String((stat && stat.世界 && stat.世界.当前地点) || '');
     const text = CFG.presence ? recentText(CFG.presenceFloors) : '';
@@ -258,7 +268,13 @@
       hit(name) {
         if (!CFG.presence) return true;
         if (!name) return false;
-        return text.indexOf(name) >= 0 || place.indexOf(name) >= 0;
+        const mentioned = text.indexOf(name) >= 0 || place.indexOf(name) >= 0;
+        if (mentioned) {
+          presenceSeen.set(name, presenceTurn);
+          return true;
+        }
+        const last = presenceSeen.get(name);
+        return last !== undefined && presenceTurn - last <= CFG.presenceHold;
       },
     };
   }
@@ -416,6 +432,7 @@
     const messages = payload && Array.isArray(payload.messages) ? payload.messages : null;
     if (!messages || !messages.length) return;
 
+    presenceTurn += 1;
     const view = buildView();
     if (!view) return;
 
@@ -513,6 +530,7 @@
     eventOn(tavern_events.CHAT_CHANGED, () => {
       window.__DAOYUAN_EXPR_LAST = null;
       window.__DAOYUAN_EXPR_FIX = null;
+      resetPresence();
     });
 
     try {
@@ -531,6 +549,13 @@
         Object.assign(CFG, patch || {});
         console.info(TAG, '配置已更新', CFG);
         return CFG;
+      },
+      who() {
+        const names = [];
+        presenceSeen.forEach((turn, name) => {
+          if (presenceTurn - turn <= CFG.presenceHold) names.push(name);
+        });
+        return names;
       },
       preview() {
         const view = buildView();
