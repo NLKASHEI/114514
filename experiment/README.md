@@ -64,6 +64,10 @@
 酒馆助手 → 局部脚本 → 新增：
 
 ```js
+// 固定到某个提交（推荐，绕开 CDN 缓存）
+import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@c6c6c7c/experiment/experiment/道渊MVU注入特化.js'
+
+// 跟着分支走（有缓存，可能拿到旧版）
 import 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@experiment/experiment/道渊MVU注入特化.js'
 ```
 
