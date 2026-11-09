@@ -63,6 +63,7 @@ const ctx = {
     GENERATION_AFTER_COMMANDS: 'main',
     GENERATION_ENDED: 'main-ended',
     GENERATION_STOPPED: 'stopped',
+    MESSAGE_RECEIVED: 'message-received',
     CHAT_CHANGED: 'changed',
   },
   SillyTavern: { chat },
@@ -169,7 +170,16 @@ setTimeout(() => {
     { type: 'replace', args: ['/世界/当前时间'] },
     { type: 'delta', args: ['/主角/生命'] },
   ];
-  fire('parsed', nextVariables, parsedCommands);
+  // Streaming may unlock the UI before emitting MESSAGE_RECEIVED.
+  fire('main-ended');
+  fire('message-received', chat.length - 1, 'normal');
+  // A later native generation can start while the earlier MVU update is still pending.
+  fire('main', 'normal', {}, false);
+  const preliminary = { stat_data: cur };
+  fire('parsed', preliminary, [], 'unrelated MVU update');
+  fire('ended', preliminary, { stat_data: cur });
+  assert.ok(logs.at(-1).text.endsWith('没有此楼层的正文投影记录'));
+  fire('parsed', nextVariables, parsedCommands, lastMsg.mes);
   parsedCommands.length = 0;
   fire('ended', nextVariables, { stat_data: cur });
   const payloadBlockLength = text => text.match(/<status_current_variables>[\s\S]*?<\/status_current_variables>/)[0].length;
@@ -178,7 +188,7 @@ setTimeout(() => {
   assert.ok(logs.some(log => log.text.endsWith('MVU 变量结算：2 条命令，2 组变化 ｜ 正文状态压缩：' +
     beforeChars + ' → ' + afterChars + ' 字，节省 ' + (beforeChars - afterChars) + ' 字')));
   fire('ended', nextVariables, { stat_data: cur });
-  assert.ok(logs.at(-1).text.endsWith('节省 0 字（本次没有正文请求记录）'));
+  assert.ok(logs.at(-1).text.endsWith('没有此楼层的正文投影记录'));
   assert.ok(!logs.some(log => log.text.includes('$internal')));
   console.log('--- 额外模型输出（更新块）---');
   console.log(ctx.window.DaoYuanEXPR.update().split('\n').slice(0, 14).join('\n'));
@@ -196,8 +206,13 @@ setTimeout(() => {
   fire('main', 'normal', {}, false);
   fire('ready', { messages: messagesWithoutState });
   assert.equal(messagesWithoutState.length, 1);
+  chat.push({ mes: '未压缩的新回复', is_user: false });
+  fire('message-received', chat.length - 1, 'normal');
+  fire('parsed', nextVariables, [], chat.at(-1).mes);
   fire('ended', nextVariables, { stat_data: cur });
   assert.ok(logs.at(-1).text.endsWith('节省 0 字（未找到道渊状态块）'));
+  chat.pop();
+  fire('main', 'normal', {}, false);
 
   const extraMarker = { role: 'system', content: '<past_observe>' };
   const extraMessages = [{ role: 'system', content: stateBlock }, extraMarker];

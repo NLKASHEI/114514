@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// 道渊 MVU 注入特化 · experiment 2.1.2
+// 道渊 MVU 注入特化 · experiment 2.1.3
 // ---------------------------------------------------------------
 // 不动世界书、不动 MVU 源码、不动 ZOD，只在"请求组装"这一步：
 //   1) 把 <status_current_variables> 里的整棵 stat_data 换成"投影"
@@ -18,11 +18,12 @@
 (function () {
   'use strict';
 
-  const VERSION = '2.1.2-experiment';
+  const VERSION = '2.1.3-experiment';
   const TAG = '[道渊EXPR]';
   const MVU_DIAGNOSTIC_EVENT = 'daoyuan_mvu_extra_model_diagnostic';
   const extraAttempts = new Map();
-  const commandCounts = new WeakMap();
+  const updateSummaries = new WeakMap();
+  let messageProjections = new WeakMap();
   const helperStateBlocks = new Map();
   const MAIN_GENERATIONS = new Set(['normal', 'regenerate', 'swipe', 'continue']);
   let mainRequestPending = false;
@@ -581,8 +582,39 @@
   }
 
   function formatProjectionSummary(result) {
-    if (!isObj(result)) return '节省 0 字（' + (result ?? '本次没有正文请求记录') + '）';
+    if (result == null) return '没有此楼层的正文投影记录';
+    if (!isObj(result)) return '节省 0 字（' + result + '）';
     return result.before + ' → ' + result.after + ' 字，节省 ' + (result.before - result.after) + ' 字';
+  }
+
+  function bindProjectionToReply(messageId, type) {
+    if (type === 'first_message' || type === 'quiet' || type === 'impersonate') return;
+    const projection = projectionSummary;
+    if (projection == null) return;
+    const message = chatList()[Number(messageId)];
+    if (!message || message.is_user || message.is_system) return;
+    let swipes = messageProjections.get(message);
+    if (!swipes) {
+      swipes = new Map();
+      messageProjections.set(message, swipes);
+    }
+    swipes.set(message.swipe_id ?? 0, projection);
+    projectionSummary = null;
+    mainRequestPending = false;
+  }
+
+  function projectionForMessage(content) {
+    if (typeof content !== 'string') return undefined;
+    const chat = chatList();
+    let result;
+    let matches = 0;
+    for (let index = chat.length - 1; index >= 0; index--) {
+      const message = chat[index];
+      if (!message || message.is_user || message.is_system || message.mes !== content) continue;
+      if (++matches > 1) return undefined;
+      result = messageProjections.get(message)?.get(message.swipe_id ?? 0);
+    }
+    return result;
   }
 
   // ───────────────────────── 更新块捕获 ─────────────────────────
@@ -591,8 +623,8 @@
     const pre = previous?.stat_data;
     const post = next?.stat_data;
     if (!pre || !post) return;
-    const count = commandCounts.get(next);
-    commandCounts.delete(next);
+    const { count, projection } = updateSummaries.get(next) ?? {};
+    updateSummaries.delete(next);
     const diffs = diffLines(pre, post);
     const timeChanged = pre.世界?.当前时间 !== post.世界?.当前时间 &&
       !diffs.some(line => line.startsWith('世界：'));
@@ -604,8 +636,7 @@
     };
     const text = 'MVU 变量结算：' + (count === undefined ? '' : count + ' 条命令，') +
       (diffs.length + Number(timeChanged)) + ' 组变化 ｜ 正文状态压缩：' +
-      formatProjectionSummary(projectionSummary);
-    projectionSummary = null;
+      formatProjectionSummary(projection);
     window.__DAOYUAN_EXPR_UPDATE = text;
     viewerLog('info', text);
   }
@@ -671,6 +702,9 @@
     if (tavern_events.GENERATION_ENDED) {
       eventOn(tavern_events.GENERATION_ENDED, () => { mainRequestPending = false; });
     }
+    const messageReceived = tavern_events.MESSAGE_RECEIVED || 'message_received';
+    if (typeof eventMakeFirst === 'function') eventMakeFirst(messageReceived, bindProjectionToReply);
+    else eventOn(messageReceived, bindProjectionToReply);
     eventOn(tavern_events.CHAT_COMPLETION_SETTINGS_READY, (payload) => {
       try { rewriteRequest(payload); }
       catch (e) {
@@ -701,6 +735,7 @@
     eventOn(tavern_events.CHAT_CHANGED, () => {
       extraAttempts.clear();
       helperStateBlocks.clear();
+      messageProjections = new WeakMap();
       mainRequestPending = false;
       projectionSummary = null;
       window.__DAOYUAN_EXPR_LAST = null;
@@ -748,8 +783,11 @@
         });
       }
       if (events.COMMAND_PARSED) {
-        eventOn(events.COMMAND_PARSED, (variables, commands) => {
-          if (isObj(variables) && Array.isArray(commands)) commandCounts.set(variables, commands.length);
+        eventOn(events.COMMAND_PARSED, (variables, commands, content) => {
+          if (isObj(variables)) updateSummaries.set(variables, {
+            count: Array.isArray(commands) ? commands.length : undefined,
+            projection: projectionForMessage(content),
+          });
         });
       }
       eventOn(events.BEFORE_MESSAGE_UPDATE || 'mag_before_message_update', (context, legacyId) => {
