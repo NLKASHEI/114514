@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.11';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.11';
+const DAOYUAN_VERSION = '1.4.12';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.12';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -1350,7 +1350,7 @@ function supportsMvuMinRequestLength(settings) {
 }
 
 function isAutoFixableConfigIssue(issue) {
-  if (['自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
+  if (issue === '自动请求未开启') return true;
   return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
 }
 
@@ -1372,7 +1372,6 @@ function checkConfig() {
       if (isExtra) {
         const em = cfg.额外模型解析配置 || {};
         if (em.启用自动请求 !== true) issues.push('自动请求未开启');
-        if (supportsMvuMinRequestLength(em) && em.最小请求字数 !== 50) issues.push('最小请求字数应为50');
         if (!em.api地址 || !em.api地址.trim()) issues.push('API地址未填写');
         // MVU新版：按模型类型检测最优配置（模型名不区分大小写）
         // 规则：仅 gemini 系开随机头部；其余（deepseek 及其它）一律关闭
@@ -2212,9 +2211,7 @@ async function mvuLiveApply(cfg) {
       if (!st || st.更新方式 !== cfg.更新方式
         || !matches(emCfg, st.额外模型解析配置, ['模型来源', '模型名称', '破限方案', '启用自动请求'])
         || (emCfg.破限方案 === '使用其他预设' && (emCfg.其他预设名称 || emCfg.预设名称) &&
-          (st.额外模型解析配置?.其他预设名称 || st.额外模型解析配置?.预设名称) !== (emCfg.其他预设名称 || emCfg.预设名称))
-        || (typeof st.额外模型解析配置?.触发标签 === 'string'
-          && !matches(emCfg, st.额外模型解析配置, ['最小请求字数']))) return { ok: false };
+          (st.额外模型解析配置?.其他预设名称 || st.额外模型解析配置?.预设名称) !== (emCfg.其他预设名称 || emCfg.预设名称))) return { ok: false };
       var effective = store.effective_settings || st;
       var overridden = effective.更新方式 !== st.更新方式
         || !matches(emCfg, effective.额外模型解析配置, ['启用自动请求']);
@@ -2758,7 +2755,6 @@ function refreshMvuConfigStatus() {
     if (isExtra) {
       if (!hasApi) warnRows.push({ label: 'API地址未填写', val: false });
       if (em.启用自动请求 !== true) warnRows.push({ label: '自动请求未开启', val: false });
-      if (supportsMvuMinRequestLength(em) && em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
       if (_hasModel && !_rndOk) warnRows.push({ label: '随机头部' + _rndTag, val: false });
       if (_hasModel && !_fmtOk) warnRows.push({ label: '应答格式 应为 聊天消息', val: false });
       if (_hasModel && !_topOk) warnRows.push({ label: 'top_p 应为 0.95', val: false });
@@ -2807,7 +2803,7 @@ async function applyOptimalMvuConfig() {
     em.请求方式 = '依次请求，失败后重试';
     em.请求次数 = 1;
     em.启用自动请求 = true;
-    if (supportsMvuMinRequestLength(em)) em.最小请求字数 = 50;
+    if (supportsMvuMinRequestLength(em)) em.最小请求字数 ??= 50;
     em.最大回复token数 = 65535;
     em.温度 = 1;
     em.频率惩罚 = 0;
