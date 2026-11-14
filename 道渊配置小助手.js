@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.9';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.9';
+const DAOYUAN_VERSION = '1.4.10';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.10';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -1351,7 +1351,7 @@ function supportsMvuMinRequestLength(settings) {
 
 function isAutoFixableConfigIssue(issue) {
   if (['自动请求未开启', '最小请求字数应为50'].includes(issue)) return true;
-  return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek应使用V4兼容格式化输出|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
+  return /四项通知未全开|Gemini应开启随机头部|Gemini应答格式应为聊天消息|DeepSeek应关闭随机头部|DeepSeek top_p|非Gemini应关闭随机头部|随AI条目误开启|输出格式强调未开启|更新方式非最优|提示词模板配置差异/.test(issue);
 }
 
 function checkConfig() {
@@ -1382,7 +1382,6 @@ function checkConfig() {
           if (em.应答格式 !== '聊天消息') issues.push('Gemini应答格式应为聊天消息');
         } else if (/deepseek/.test(_emName)) {
           if (em.随机头部 !== false) issues.push('DeepSeek应关闭随机头部');
-          if (em.应答格式 !== '格式化输出(v4兼容)') issues.push('DeepSeek应使用V4兼容格式化输出');
           if (em.top_p !== 0.95) issues.push('DeepSeek top_p 应为0.95');
         } else if (em.模型名称 && em.随机头部 !== false) {
           issues.push('非Gemini应关闭随机头部');
@@ -2710,6 +2709,12 @@ async function applyOptimalEjs() {
 ejsOptimizeBtn.addEventListener('click', applyOptimalEjs);
 
 // 刷新配置状态
+function deepSeekFormatAdvice(em) {
+  if (!/deepseek/i.test(String(em.模型名称 || '')) ||
+      (em.应答格式 === '格式化输出(v4兼容)' && em.关闭thinking === true)) return '';
+  return '<div style="font-size:11px;color:#d4af37;">建议：DeepSeek 使用格式化输出（V4 兼容）并关闭思考</div>';
+}
+
 function refreshMvuConfigStatus() {
   try {
     const cfg = getMvuCfg();
@@ -2729,7 +2734,7 @@ function refreshMvuConfigStatus() {
     const _isDS = /deepseek/.test(_emName);
     const _isGM = /gemini/.test(_emName);
     const _rndOk = !_hasModel ? true : (_isGM ? em.随机头部 === true : em.随机头部 === false); // 仅Gemini开，其余关
-    const _fmtOk = !_hasModel ? true : (_isDS ? em.应答格式 === '格式化输出(v4兼容)' : (_isGM ? em.应答格式 === '聊天消息' : true));
+    const _fmtOk = !_isGM || !_hasModel || em.应答格式 === '聊天消息';
     const _topOk = !_hasModel ? true : (_isDS ? em.top_p === 0.95 : true);
     const _rndTag = _isGM ? ' (GM应开)' : ' (非GM应关)';
     // 仅保留必要项 + 异常项：全绿时只显示一行概览，异常时逐条列出
@@ -2740,7 +2745,7 @@ function refreshMvuConfigStatus() {
       if (em.启用自动请求 !== true) warnRows.push({ label: '自动请求未开启', val: false });
       if (supportsMvuMinRequestLength(em) && em.最小请求字数 !== 50) warnRows.push({ label: '最小请求字数应为 50', val: false });
       if (_hasModel && !_rndOk) warnRows.push({ label: '随机头部' + _rndTag, val: false });
-      if (_hasModel && !_fmtOk) warnRows.push({ label: '应答格式 应为 ' + (_isDS ? '格式化输出(v4兼容)' : '聊天消息'), val: false });
+      if (_hasModel && !_fmtOk) warnRows.push({ label: '应答格式 应为 聊天消息', val: false });
       if (_hasModel && !_topOk) warnRows.push({ label: 'top_p 应为 0.95', val: false });
     } else if (isSuiAI && !_mvuOutputFormatEnabled) {
       warnRows.push({ label: '输出格式强调未开启', val: false });
@@ -2757,7 +2762,8 @@ function refreshMvuConfigStatus() {
       '</div>' +
       (warnRows.length === 0
         ? '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">四项通知正常</span><span class="status-dot on" style="display:inline-block;vertical-align:middle;margin-left:6px;"></span></div>'
-        : warnRows.map(dotRow).join(''));
+        : warnRows.map(dotRow).join('')) +
+      (isExtra ? deepSeekFormatAdvice(em) : '');
   } catch (e) {
     mvuStatus.textContent = '读取MVU配置出错';
   }
@@ -2797,7 +2803,7 @@ async function applyOptimalMvuConfig() {
     // ── MVU新版：按模型类型自动适配 + 保存方案（共用函数）──
     // 规则：gemini → 开随机头部 + 聊天消息；deepseek → 关随机头部 + V4兼容 + top_p 0.95；
     //       其它非gemini → 关随机头部 + 聊天消息 + top_p 1（不使用格式化输出）
-    const _adp = adaptExtraModelAndSaveProfile(em);
+    const _adp = adaptExtraModelAndSaveProfile(em, true);
     const _isGemini = _adp.isGemini;
     const _isDeepSeek = _adp.isDeepSeek;
 
@@ -2846,16 +2852,16 @@ async function applyOptimalMvuConfig() {
     }
     if (live && live.ok) {
       mvuStatus.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;">额外模型解析</span><span style="font-size:10px;color:#6a8098;">独立模型解析变量</span></div>' +
-        '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">' + (_isDeepSeek ? 'DeepSeek · 关随机头部 · V4兼容 · top_p 0.95' : (_isGemini ? 'Gemini · 开随机头部 · 聊天消息' : '配置最优')) + '</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
+        '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">' + (_isDeepSeek ? 'DeepSeek · 关随机头部 · V4兼容 · 关闭思考 · top_p 0.95' : (_isGemini ? 'Gemini · 开随机头部 · 聊天消息' : '配置最优')) + '</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
         '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">方案「' + (em.当前api方案 || '未命名') + '」</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
         '<div style="display:flex;align-items:center;font-size:11px;color:#2ed573;padding:2px 0 2px 4px;border-left:1.5px solid rgba(46,213,115,0.2);margin-bottom:2px;"><span style="flex:1;">已无感应用（未刷新页面）</span><span class="status-dot on" style="display:inline-block;"></span></div>';
-      showToast('MVU最优配置已无感应用' + (_isDeepSeek ? '，DeepSeek已关闭随机头部·V4兼容·top_p 0.95' : (_isGemini ? '，Gemini已开启随机头部' : '')) + '，已保存方案「' + (em.当前api方案 || '未命名') + '」');
+      showToast('MVU最优配置已无感应用' + (_isDeepSeek ? '，DeepSeek已关闭随机头部·V4兼容·关闭思考·top_p 0.95' : (_isGemini ? '，Gemini已开启随机头部' : '')) + '，已保存方案「' + (em.当前api方案 || '未命名') + '」');
       checkConfig();
     } else {
       mvuStatus.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><span style="font-size:10px;color:#D4AF37;background:rgba(212,175,55,0.08);padding:2px 8px;border-radius:3px;">额外模型解析</span><span style="font-size:10px;color:#6a8098;">独立模型解析变量</span></div>' +
-        '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">' + (_isDeepSeek ? 'DeepSeek · 关随机头部 · V4兼容 · top_p 0.95' : (_isGemini ? 'Gemini · 开随机头部 · 聊天消息' : '配置最优')) + '</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
+        '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">' + (_isDeepSeek ? 'DeepSeek · 关随机头部 · V4兼容 · 关闭思考 · top_p 0.95' : (_isGemini ? 'Gemini · 开随机头部 · 聊天消息' : '配置最优')) + '</span><span class="status-dot on" style="display:inline-block;"></span></div>' +
         '<div style="display:flex;align-items:center;font-size:11px;color:#8aa0c0;padding:2px 0 2px 4px;border-left:1.5px solid rgba(74,144,226,0.12);margin-bottom:2px;"><span style="flex:1;">方案「' + (em.当前api方案 || '未命名') + '」</span><span class="status-dot on" style="display:inline-block;"></span></div>';
-      showToast('MVU最优配置已应用' + (_isDeepSeek ? '，DeepSeek已关闭随机头部·V4兼容·top_p 0.95' : (_isGemini ? '，Gemini已开启随机头部' : '')) + '，已保存方案「' + (em.当前api方案 || '未命名') + '」，2秒后刷新页面...');
+      showToast('MVU最优配置已应用' + (_isDeepSeek ? '，DeepSeek已关闭随机头部·V4兼容·关闭思考·top_p 0.95' : (_isGemini ? '，Gemini已开启随机头部' : '')) + '，已保存方案「' + (em.当前api方案 || '未命名') + '」，2秒后刷新页面...');
       setTimeout(() => { window.parent.location.reload(); }, 2000);
     }
   } catch (e) {
@@ -2987,7 +2993,7 @@ function normProfileUrl(url) {
 //       deepseek → 关随机头部 + 格式化输出(v4兼容) + top_p 0.95
 //       其它非gemini → 关随机头部 + 聊天消息 + top_p 1（不使用格式化输出）
 // 方案以「URL + 模型名」为唯一标识：相同则复用更新（含密钥），否则自动新建去重
-function adaptExtraModelAndSaveProfile(em) {
+function adaptExtraModelAndSaveProfile(em, applyOptimal = false) {
   if (!em) return { isGemini: false, isDeepSeek: false };
   const _name = String(em.模型名称 || '').toLowerCase();
   const isGemini = /gemini/.test(_name);
@@ -3001,9 +3007,11 @@ function adaptExtraModelAndSaveProfile(em) {
     em.关闭thinking = false;
   } else if (isDeepSeek) {
     em.随机头部 = false;
-    em.应答格式 = '格式化输出(v4兼容)';
     em.top_p = 0.95;
-    em.关闭thinking = em.关闭thinking !== undefined ? em.关闭thinking : true;
+    if (applyOptimal) {
+      em.应答格式 = '格式化输出(v4兼容)';
+      em.关闭thinking = true;
+    }
   } else {
     em.随机头部 = false;
     em.应答格式 = '聊天消息';
