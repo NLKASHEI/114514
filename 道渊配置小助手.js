@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.14';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.14';
+const DAOYUAN_VERSION = '1.4.15';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.15';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -100,8 +100,12 @@ async function api_getCharWorldbooks() {
   return runInParent('TavernHelper.getCharWorldbookNames("current")');
 }
 
+function isTavernDBEntry(entry) {
+  return [entry?.name, entry?.comment, entry?.title].some(name => /TavernDB/i.test(String(name || '')));
+}
+
 async function api_getWorldbook(name) {
-  return runInParent(`TavernHelper.getWorldbook(${JSON.stringify(name)})`);
+  return (await runInParent(`TavernHelper.getWorldbook(${JSON.stringify(name)})`)).filter(entry => !isTavernDBEntry(entry));
 }
 
 // 直接在父页面：获取条目 → 修改 → replaceWorldbook 保存 → 返回刷新后的条目
@@ -109,7 +113,7 @@ async function api_replaceWorldbook(name, entriesModifier) {
   return runInParent(
     `(async () => {` +
     `  var _entries = await TavernHelper.getWorldbook(${JSON.stringify(name)});` +
-    `  (${entriesModifier})(_entries);` +
+    `  (${entriesModifier})(_entries.filter(function(entry) { return ![entry.name, entry.comment, entry.title].some(function(name) { return /TavernDB/i.test(String(name || "")); }); }));` +
     `  await TavernHelper.replaceWorldbook(${JSON.stringify(name)}, _entries);` +
     `  return await TavernHelper.getWorldbook(${JSON.stringify(name)});` +
     `})()`
