@@ -3,8 +3,8 @@
 //   await import('https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js?t=' + Date.now())
 // ═══════════════════════════════════════════════════════════
 
-const DAOYUAN_VERSION = '1.4.15';
-const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.15';
+const DAOYUAN_VERSION = '1.4.16';
+const DAOYUAN_RELEASE_MARKER = 'DAOYUAN_RELEASE:1.4.16';
 const EXTRA_MODEL_RECOMMENDATION = 'Gemini 3.8F / Doubao Seed 2.1 Lite / GLM 5.3F';
 const DAOYUAN_CDN_URL = 'https://cdn.jsdelivr.net/gh/NLKASHEI/114514@main/道渊配置小助手.min.js';
 const p = window.parent || window;
@@ -1681,7 +1681,7 @@ function updateBackendCode() {
       latest?.t || 0, latest?.v || '-', 'json:' + encodeURIComponent(JSON.stringify(backendCallLog.map(({ t, v, u }) => ({ t, v, u }))))];
     const payload = fields.map(value => String(value).replaceAll('|', '%7C')).join('|');
     const encrypted = encryptPayload(payload);
-    backendCode.innerHTML = '<span style="font-size:10px;color:#6a8098;">后台配置码（含最近 3 次请求结果）</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#D4AF37;padding:2px 6px;border-radius:3px;border:1px solid #2a3a50;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
+    backendCode.innerHTML = '<span style="font-size:10px;color:#6a8098;">后台配置码</span> <code style="font-size:10px;font-family:Consolas,Monaco,monospace;background:#080c14;color:#D4AF37;padding:2px 6px;border-radius:3px;border:1px solid #2a3a50;white-space:nowrap;max-width:200px;display:inline-block;overflow:hidden;text-overflow:ellipsis;vertical-align:middle;cursor:pointer;" title="点击复制" onclick="navigator.clipboard.writeText(this.textContent);var b=this.nextElementSibling;b.textContent=\'已复制\';setTimeout(()=>b.textContent=\'复制\',1500);">' + encrypted + '</code> <button class="bp-switch-btn xs" style="vertical-align:middle;" onclick="navigator.clipboard.writeText(\'' + encrypted + '\');this.textContent=\'已复制\';setTimeout(()=>this.textContent=\'复制\',1500);">复制</button>';
   } catch (e) {
     backendCode.innerHTML = '';
   }
